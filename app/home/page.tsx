@@ -82,7 +82,7 @@ export default function HomePage() {
       {/* 헤더 */}
       <div style={{ padding: '20px 20px 0', background: '#F3EEE2', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid rgba(33,26,51,.08)' }}>
         {/* 로고 */}
-        <img src="/siriai-logo.png" alt="SIRIAI" style={{ height: 46, width: 'auto', display: 'block', marginBottom: 12 }} />
+        <img src="/siriai-logo.png" alt="SIRIAI" style={{ height: 60, width: 'auto', display: 'block', marginBottom: 12 }} />
 
         {/* 인사 + 알림 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
