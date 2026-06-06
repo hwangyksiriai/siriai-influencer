@@ -53,6 +53,7 @@ export default function CampaignDetailPage() {
   const [request, setRequest] = useState('')
   const [userId, setUserId] = useState('')
   const [alreadyApplied, setAlreadyApplied] = useState(false)
+  const [applySuccess, setApplySuccess] = useState(false)
   const [copied, setCopied] = useState('')
 
   useEffect(() => {
@@ -80,6 +81,7 @@ export default function CampaignDetailPage() {
     setApplying(false)
     setShowApply(false)
     setAlreadyApplied(true)
+    setApplySuccess(true)
   }
 
   function copy(text: string, key: string) {
@@ -289,6 +291,19 @@ export default function CampaignDetailPage() {
                 {applying ? '신청 중...' : '신청 완료'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 신청 완료 안내 */}
+      {applySuccess && (
+        <div onClick={() => setApplySuccess(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, maxWidth: 430, left: '50%', transform: 'translateX(-50%)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 18, padding: '32px 24px', width: '100%', textAlign: 'center' }}>
+            <p style={{ fontSize: 44, marginBottom: 12 }}>🎉</p>
+            <h3 style={{ fontSize: 19, fontWeight: 800, color: '#211A33', marginBottom: 8, letterSpacing: '-0.5px' }}>신청 완료!</h3>
+            <p style={{ fontSize: 14, color: 'rgba(33,26,51,.6)', lineHeight: 1.6, marginBottom: 24 }}>캠페인 신청이 접수됐어요.<br />선정 결과를 기다려 주세요.</p>
+            <button onClick={() => setApplySuccess(false)}
+              style={{ width: '100%', background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '14px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>확인</button>
           </div>
         </div>
       )}
