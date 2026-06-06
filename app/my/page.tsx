@@ -17,10 +17,15 @@ interface Influencer {
   bank_name: string
   bank_account: string
   account_holder: string
+  avatar_url: string
   ig_feed_min: number
   ig_feed_max: number
   ig_reels_min: number
   ig_reels_max: number
+  yt_shorts_min: number
+  yt_shorts_max: number
+  yt_video_min: number
+  yt_video_max: number
 }
 
 interface Settlement {
@@ -39,6 +44,7 @@ const inp: React.CSSProperties = {
 
 const statusLabel: Record<string, string> = { pending: '지급예정', paid: '지급완료', cancelled: '취소' }
 const statusColor: Record<string, string> = { pending: '#e65100', paid: '#2e7d32', cancelled: 'rgba(33,26,51,.4)' }
+const BANKS = ['카카오뱅크', '토스뱅크', '국민은행', '신한은행', '우리은행', '하나은행', '농협은행', '기업은행', 'SC제일은행', '씨티은행', '새마을금고', '우체국', '부산은행', '대구은행', '광주은행', '경남은행', '전북은행', '수협은행', '케이뱅크']
 
 export default function MyPage() {
   const router = useRouter()
@@ -68,14 +74,28 @@ export default function MyPage() {
 
   const set = (k: string, v: any) => setInf(i => i ? { ...i, [k]: v } : i)
 
+  async function uploadAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !inf) return
+    const ext = file.name.split('.').pop()
+    const path = `avatars/${inf.id}-${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('campaign-files').upload(path, file, { upsert: true })
+    if (error) { alert('사진 업로드 실패: ' + error.message); return }
+    const { data } = supabase.storage.from('campaign-files').getPublicUrl(path)
+    set('avatar_url', data.publicUrl)
+    await supabase.from('influencers').update({ avatar_url: data.publicUrl }).eq('id', inf.id)
+  }
+
   async function handleSave() {
     if (!inf) return
     setSaving(true)
     await supabase.from('influencers').update({
-      name: inf.name, handle: inf.handle, phone: inf.phone,
+      name: inf.name, handle: inf.handle, phone: inf.phone, avatar_url: inf.avatar_url,
       bank_name: inf.bank_name, bank_account: inf.bank_account, account_holder: inf.account_holder,
       ig_feed_min: inf.ig_feed_min, ig_feed_max: inf.ig_feed_max,
       ig_reels_min: inf.ig_reels_min, ig_reels_max: inf.ig_reels_max,
+      yt_shorts_min: inf.yt_shorts_min, yt_shorts_max: inf.yt_shorts_max,
+      yt_video_min: inf.yt_video_min, yt_video_max: inf.yt_video_max,
     }).eq('id', inf.id)
     await supabase.from('influencer_secure').upsert({ influencer_id: inf.id, rrn }, { onConflict: 'influencer_id' })
     setSaving(false)
@@ -93,6 +113,19 @@ export default function MyPage() {
 
   if (!inf) return <div style={{ minHeight: '100vh', background: '#F3EEE2' }}><BottomNav /></div>
 
+  const phoneParts = (inf.phone || '').split('-')
+  const setPhonePart = (idx: number, val: string) => {
+    const p = (inf.phone || '').split('-'); while (p.length < 3) p.push('')
+    p[idx] = val.replace(/[^0-9]/g, '')
+    set('phone', p.join('-'))
+  }
+  const rrnParts = (rrn || '').split('-')
+  const setRrnPart = (idx: number, val: string) => {
+    const p = (rrn || '').split('-'); while (p.length < 2) p.push('')
+    p[idx] = val.replace(/[^0-9]/g, '')
+    setRrn(p.join('-'))
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 80 }}>
       {/* 헤더 */}
@@ -104,7 +137,10 @@ export default function MyPage() {
 
         {/* 프로필 요약 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(33,26,51,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>🙋</div>
+          <label style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(33,26,51,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }} title="프로필 사진 변경">
+            <input type="file" accept="image/*" onChange={uploadAvatar} style={{ display: 'none' }} />
+            {inf.avatar_url ? <img src={inf.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🙋'}
+          </label>
           <div>
             <p style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>{inf.name}</p>
             <p style={{ fontSize: 13, color: 'rgba(33,26,51,.5)', marginTop: 2 }}>@{inf.handle} · {inf.followers?.toLocaleString()}명</p>
@@ -142,15 +178,24 @@ export default function MyPage() {
             </div>
             <div>
               <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 6 }}>연락처</label>
-              <input style={inp} type="text" value={inf.phone || ''} onChange={e => set('phone', e.target.value)} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={3} placeholder="010" value={phoneParts[0] || ''} onChange={e => setPhonePart(0, e.target.value)} />
+                <span style={{ color: 'rgba(33,26,51,.3)' }}>-</span>
+                <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={4} placeholder="0000" value={phoneParts[1] || ''} onChange={e => setPhonePart(1, e.target.value)} />
+                <span style={{ color: 'rgba(33,26,51,.3)' }}>-</span>
+                <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={4} placeholder="0000" value={phoneParts[2] || ''} onChange={e => setPhonePart(2, e.target.value)} />
+              </div>
             </div>
 
             {/* 협업 단가 */}
             <div style={{ borderTop: '1px solid rgba(33,26,51,.08)', paddingTop: 16 }}>
-              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', marginBottom: 12 }}>협업 단가 (만원)</p>
+              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', marginBottom: 6 }}>협업 단가 (만원)</p>
+              <p style={{ fontSize: 12, color: 'rgba(33,26,51,.5)', lineHeight: 1.5, marginBottom: 12 }}>희망 협업 단가를 자유롭게 입력해 주세요. 매칭 시 참고합니다.</p>
               {[
                 { label: '인스타 피드', minK: 'ig_feed_min', maxK: 'ig_feed_max' },
                 { label: '인스타 릴스', minK: 'ig_reels_min', maxK: 'ig_reels_max' },
+                { label: '유튜브 쇼츠', minK: 'yt_shorts_min', maxK: 'yt_shorts_max' },
+                { label: '유튜브 롱폼', minK: 'yt_video_min', maxK: 'yt_video_max' },
               ].map(f => (
                 <div key={f.minK} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                   <span style={{ fontSize: 13, color: 'rgba(33,26,51,.6)', minWidth: 90 }}>{f.label}</span>
@@ -171,7 +216,10 @@ export default function MyPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
                     <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>은행</label>
-                    <input style={inp} type="text" placeholder="카카오뱅크" value={inf.bank_name || ''} onChange={e => set('bank_name', e.target.value)} />
+                    <select style={inp} value={inf.bank_name || ''} onChange={e => set('bank_name', e.target.value)}>
+                      <option value="">은행 선택</option>
+                      {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
                   </div>
                   <div>
                     <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>예금주</label>
@@ -184,7 +232,11 @@ export default function MyPage() {
                 </div>
                 <div>
                   <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>주민등록번호 (정산 세금 신고용)</label>
-                  <input style={inp} type="text" inputMode="numeric" placeholder="앞 6자리 - 뒤 7자리" value={rrn} onChange={e => setRrn(e.target.value)} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={6} placeholder="앞 6자리" value={rrnParts[0] || ''} onChange={e => setRrnPart(0, e.target.value)} />
+                    <span style={{ color: 'rgba(33,26,51,.3)' }}>-</span>
+                    <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" type="password" maxLength={7} placeholder="뒤 7자리" value={rrnParts[1] || ''} onChange={e => setRrnPart(1, e.target.value)} />
+                  </div>
                   <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginTop: 5, lineHeight: 1.5 }}>🔒 정산 세금 신고에만 사용하며, 본인과 정산 담당자만 볼 수 있어요.</p>
                 </div>
               </div>
