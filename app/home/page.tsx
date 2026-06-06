@@ -102,7 +102,7 @@ export default function HomePage() {
       {/* 헤더 */}
       <div style={{ padding: '20px 20px 0', background: '#F3EEE2', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid rgba(33,26,51,.08)' }}>
         {/* 로고 + 인사(오른쪽 같은 선상) */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <img src="/siriai-logo.png?v=3" alt="SIRIAI" style={{ height: 30, width: 'auto', display: 'block' }} />
           <div style={{ textAlign: 'right' }}>
             <p style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.3px', color: '#211A33' }}>{userName}님</p>
@@ -110,20 +110,22 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 캠페인 제목 + 알림/필터 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, paddingBottom: 12 }}>
+        {/* 종 (단독, 오른쪽) */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 2 }}>
+          <button onClick={() => setShowNoti(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, position: 'relative' }}>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            {notis.length > 0 && <span style={{ position: 'absolute', top: 2, right: 2, background: '#e65100', color: '#fff', borderRadius: 100, fontSize: 9, fontWeight: 700, minWidth: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{notis.length}</span>}
+          </button>
+        </div>
+
+        {/* 캠페인 제목 + 필터 (종 아래) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12 }}>
           <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>캠페인</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button onClick={() => setShowNoti(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, position: 'relative' }}>
-              <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-              {notis.length > 0 && <span style={{ position: 'absolute', top: 2, right: 2, background: '#e65100', color: '#fff', borderRadius: 100, fontSize: 9, fontWeight: 700, minWidth: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{notis.length}</span>}
-            </button>
-            <button onClick={() => setShowFilter(v => !v)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: (showFilter || activeCount) ? '#211A33' : 'rgba(33,26,51,.06)', color: (showFilter || activeCount) ? '#F3EEE2' : '#211A33', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>
-              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
-              필터{activeCount > 0 ? ` ${activeCount}` : ''}
-            </button>
-          </div>
+          <button onClick={() => setShowFilter(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: (showFilter || activeCount) ? '#211A33' : 'rgba(33,26,51,.06)', color: (showFilter || activeCount) ? '#F3EEE2' : '#211A33', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+            필터{activeCount > 0 ? ` ${activeCount}` : ''}
+          </button>
         </div>
 
         {/* 필터 패널 (아이콘 클릭 시) */}
