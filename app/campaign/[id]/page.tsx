@@ -72,6 +72,20 @@ export default function CampaignDetailPage() {
     })
   }, [id])
 
+  useEffect(() => {
+    if (document.getElementById('daum-postcode-script')) return
+    const s = document.createElement('script')
+    s.id = 'daum-postcode-script'
+    s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
+    document.body.appendChild(s)
+  }, [])
+
+  function openPostcode() {
+    const daum = (window as any).daum
+    if (!daum || !daum.Postcode) { alert('주소 검색을 불러오는 중이에요. 잠시 후 다시 시도해 주세요.'); return }
+    new daum.Postcode({ oncomplete: (d: any) => setAddress(d.roadAddress || d.jibunAddress || d.address || '') }).open()
+  }
+
   async function handleApply() {
     if (!address.trim()) return
     setApplying(true)
@@ -291,8 +305,12 @@ export default function CampaignDetailPage() {
             <div style={{ width: 40, height: 4, background: 'rgba(33,26,51,.2)', borderRadius: 2, margin: '0 auto 20px' }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 20, letterSpacing: '-0.5px' }}>캠페인 신청</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input placeholder="도로명 주소" value={address} onChange={e => setAddress(e.target.value)}
-                style={{ width: '100%', border: '1.5px solid rgba(33,26,51,.2)', borderRadius: 10, padding: '12px 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input placeholder="주소 검색을 눌러주세요" value={address} readOnly onClick={openPostcode}
+                  style={{ flex: 1, border: '1.5px solid rgba(33,26,51,.2)', borderRadius: 10, padding: '12px 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', background: 'rgba(33,26,51,.03)', cursor: 'pointer' }} />
+                <button type="button" onClick={openPostcode}
+                  style={{ flexShrink: 0, background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 10, padding: '0 16px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>주소 검색</button>
+              </div>
               <input placeholder="상세 주소 (동, 호수 등)" value={addressDetail} onChange={e => setAddressDetail(e.target.value)}
                 style={{ width: '100%', border: '1.5px solid rgba(33,26,51,.2)', borderRadius: 10, padding: '12px 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
               <input placeholder="요청사항 (선택)" value={request} onChange={e => setRequest(e.target.value)}
