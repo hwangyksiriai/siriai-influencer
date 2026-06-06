@@ -35,7 +35,12 @@ export default function HomePage() {
   async function checkAuth() {
     const { data } = await supabase.auth.getSession()
     if (!data.session) { router.replace('/login'); return }
-    const { data: inf } = await supabase.from('influencers').select('name').eq('id', data.session.user.id).single()
+    const { data: inf } = await supabase.from('influencers').select('name, status').eq('id', data.session.user.id).single()
+    if (inf && inf.status && inf.status !== 'approved') {
+      await supabase.auth.signOut()
+      router.replace('/login')
+      return
+    }
     if (inf) setUserName(inf.name)
   }
 

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
@@ -14,21 +13,36 @@ const lbl: React.CSSProperties = {
   fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.16em',
   textTransform: 'uppercase', color: 'rgba(33,26,51,.46)', display: 'block', marginBottom: 6,
 }
+const chip = (active: boolean): React.CSSProperties => ({
+  borderRadius: 100, padding: '7px 14px', fontSize: 13, border: '1px solid rgba(33,26,51,.2)',
+  cursor: 'pointer', transition: 'all .15s',
+  background: active ? '#211A33' : 'transparent', color: active ? '#F3EEE2' : '#211A33',
+})
 
 const CATEGORIES = ['뷰티', '패션', '라이프', '푸드', '여행', '육아', '피트니스']
+const GENDERS = ['여성', '남성']
+const REGIONS = ['서울', '경기', '인천', '부산', '대구', '대전', '광주', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
 
 export default function SignupPage() {
-  const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPw, setShowPw] = useState(false)
+  const [done, setDone] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
-  const [form, setForm] = useState({
-    email: '', password: '', name: '', handle: '', followers: '',
-  })
+  const [form, setForm] = useState({ email: '', password: '', name: '', handle: '', gender: '', region: '' })
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
   const toggleCat = (c: string) => setCategories(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c])
+  // 비밀번호: 영문 + 숫자 포함 8자 이상
+  const pwValid = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(form.password)
+
+  function goStep2() {
+    if (!form.email) { setError('이메일을 입력해주세요.'); return }
+    if (!pwValid) { setError('비밀번호는 영문과 숫자를 포함해 8자 이상이어야 해요.'); return }
+    setError('')
+    setStep(2)
+  }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
@@ -40,17 +54,43 @@ export default function SignupPage() {
     if (authError) { setError(authError.message); setLoading(false); return }
 
     if (data.user) {
-      await supabase.from('influencers').insert([{
+      const { error: insErr } = await supabase.from('influencers').insert([{
         id: data.user.id,
         name: form.name,
         handle: form.handle,
-        followers: form.followers ? parseInt(form.followers) : 0,
         email: form.email,
+        gender: form.gender || null,
+        region: form.region || null,
         category: categories,
+        status: 'pending',
       }])
+      if (insErr) { setError('프로필 저장 실패: ' + insErr.message); setLoading(false); return }
     }
     setLoading(false)
-    router.push('/home')
+    setDone(true)
+  }
+
+  // 가입 신청 완료 (검토 대기) 화면
+  if (done) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: `radial-gradient(60% 50% at 85% 5%, rgba(221,208,239,.4), transparent 55%), #F3EEE2`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '40px 28px', textAlign: 'center',
+      }}>
+        <p style={{ fontSize: 44, marginBottom: 16 }}>📨</p>
+        <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33', marginBottom: 12 }}>가입 신청이 완료됐어요</h1>
+        <p style={{ fontSize: 14, color: 'rgba(33,26,51,.6)', lineHeight: 1.7, marginBottom: 28 }}>
+          인스타그램 계정 확인 및 검토 후 승인돼요.<br />승인되면 로그인하실 수 있어요.
+        </p>
+        <Link href="/login" style={{ textDecoration: 'none' }}>
+          <button style={{ background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 100, padding: '13px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            로그인 화면으로
+          </button>
+        </Link>
+      </div>
+    )
   }
 
   return (
@@ -82,9 +122,24 @@ export default function SignupPage() {
             </div>
             <div>
               <label style={lbl}>비밀번호</label>
-              <input style={inp} type="password" placeholder="8자 이상" value={form.password} onChange={e => set('password', e.target.value)} required minLength={8} />
+              <div style={{ position: 'relative' }}>
+                <input
+                  style={{ ...inp, paddingRight: 60 }}
+                  type={showPw ? 'text' : 'password'}
+                  placeholder="영문+숫자 8자 이상"
+                  value={form.password}
+                  onChange={e => set('password', e.target.value)}
+                  required
+                />
+                <button type="button" onClick={() => setShowPw(s => !s)}
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 13, color: 'rgba(33,26,51,.5)', cursor: 'pointer' }}>
+                  {showPw ? '숨김' : '보기'}
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', margin: '6px 2px 0' }}>영문과 숫자를 포함해 8자 이상</p>
             </div>
-            <button type="button" onClick={() => { if (!form.email || !form.password) return; setStep(2) }}
+            {error && <p style={{ fontSize: 12, color: '#e03', margin: 0 }}>{error}</p>}
+            <button type="button" onClick={goStep2}
               style={{ background: '#211A33', color: '#F3EEE2', borderRadius: 100, padding: '15px', fontSize: 15, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 'auto' }}>
               다음
             </button>
@@ -104,24 +159,32 @@ export default function SignupPage() {
               </div>
             </div>
             <div>
-              <label style={lbl}>팔로워 수</label>
-              <input style={inp} type="number" placeholder="1000" value={form.followers} onChange={e => set('followers', e.target.value)} />
+              <label style={lbl}>성별</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {GENDERS.map(g => (
+                  <button key={g} type="button" onClick={() => set('gender', g)} style={chip(form.gender === g)}>{g}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={lbl}>거주지역</label>
+              <select style={inp} value={form.region} onChange={e => set('region', e.target.value)}>
+                <option value="">지역 선택</option>
+                {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
             </div>
             <div>
               <label style={lbl}>카테고리 (복수 선택)</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
                 {CATEGORIES.map(c => (
-                  <button key={c} type="button" onClick={() => toggleCat(c)}
-                    style={{ borderRadius: 100, padding: '7px 14px', fontSize: 13, border: '1px solid rgba(33,26,51,.2)', cursor: 'pointer', background: categories.includes(c) ? '#211A33' : 'transparent', color: categories.includes(c) ? '#F3EEE2' : '#211A33', transition: 'all .15s' }}>
-                    {c}
-                  </button>
+                  <button key={c} type="button" onClick={() => toggleCat(c)} style={chip(categories.includes(c))}>{c}</button>
                 ))}
               </div>
             </div>
             {error && <p style={{ fontSize: 12, color: '#e03', margin: 0 }}>{error}</p>}
             <button type="submit" disabled={loading}
               style={{ background: '#211A33', color: '#F3EEE2', borderRadius: 100, padding: '15px', fontSize: 15, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 'auto', opacity: loading ? .6 : 1 }}>
-              {loading ? '가입 중...' : '가입 완료'}
+              {loading ? '신청 중...' : '가입 신청'}
             </button>
           </>
         )}

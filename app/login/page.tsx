@@ -15,6 +15,7 @@ export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -22,9 +23,19 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) { setError('이메일 또는 비밀번호가 틀렸어요.'); setLoading(false); return }
+
+    // 승인 상태 확인 (검토 후 승인된 인플루언서만 이용 가능)
+    const { data: inf } = await supabase.from('influencers').select('status').eq('id', data.user?.id).single()
     setLoading(false)
-    if (error) { setError('이메일 또는 비밀번호가 틀렸어요.'); return }
+    if (inf && inf.status && inf.status !== 'approved') {
+      await supabase.auth.signOut()
+      setError(inf.status === 'rejected'
+        ? '가입이 반려되었어요. 문의해 주세요.'
+        : '아직 승인 대기 중이에요. 검토 후 승인되면 이용할 수 있어요.')
+      return
+    }
     router.push('/home')
   }
 
@@ -44,7 +55,13 @@ export default function LoginPage() {
 
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <input style={inp} type="email" placeholder="이메일" value={email} onChange={e => setEmail(e.target.value)} required />
-        <input style={inp} type="password" placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} required />
+        <div style={{ position: 'relative' }}>
+          <input style={{ ...inp, paddingRight: 60 }} type={showPw ? 'text' : 'password'} placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} required />
+          <button type="button" onClick={() => setShowPw(s => !s)}
+            style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 13, color: 'rgba(33,26,51,.5)', cursor: 'pointer' }}>
+            {showPw ? '숨김' : '보기'}
+          </button>
+        </div>
         {error && <p style={{ fontSize: 12, color: '#e03', margin: 0 }}>{error}</p>}
         <button type="submit" disabled={loading} style={{
           background: '#211A33', color: '#F3EEE2', borderRadius: 100,
