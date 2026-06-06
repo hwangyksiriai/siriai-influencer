@@ -88,7 +88,7 @@ export default function HomePage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <p style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.3px', color: '#211A33' }}>{userName}님</p>
-            <p style={{ fontSize: 13, color: 'rgba(33,26,51,.5)', marginTop: 2 }}>SIRIAI 캠페인에 오신 걸 환영해요</p>
+            <p style={{ fontSize: 13, color: 'rgba(33,26,51,.5)', marginTop: 2 }}>사람과 브랜드를 잇는 특별한 연결</p>
           </div>
           <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6 }}>
             <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
