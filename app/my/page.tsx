@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 
@@ -41,6 +40,10 @@ const inp: React.CSSProperties = {
   borderRadius: 10, padding: '11px 14px', fontSize: 14, color: '#211A33',
   fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
 }
+const secCard: React.CSSProperties = { background: 'rgba(255,255,255,.5)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 14, overflow: 'hidden' }
+const secBtn: React.CSSProperties = { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', padding: '15px 16px', fontSize: 14, fontWeight: 700, color: '#211A33', cursor: 'pointer', fontFamily: 'inherit' }
+const secBody: React.CSSProperties = { padding: '0 16px 18px' }
+const microLbl: React.CSSProperties = { fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 6 }
 
 const statusLabel: Record<string, string> = { pending: '지급예정', paid: '지급완료', cancelled: '취소' }
 const statusColor: Record<string, string> = { pending: '#e65100', paid: '#2e7d32', cancelled: 'rgba(33,26,51,.4)' }
@@ -54,6 +57,8 @@ export default function MyPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [rrn, setRrn] = useState('')
+  const [openSec, setOpenSec] = useState<Record<string, boolean>>({ basic: true, rate: false, account: false })
+  const toggleSec = (k: string) => setOpenSec(s => ({ ...s, [k]: !s[k] }))
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -126,6 +131,10 @@ export default function MyPage() {
     setRrn(p.join('-'))
   }
 
+  const chevron = (open: boolean) => (
+    <span style={{ fontSize: 18, color: 'rgba(33,26,51,.35)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s', lineHeight: 1 }}>⌄</span>
+  )
+
   return (
     <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 80 }}>
       {/* 헤더 */}
@@ -165,85 +174,107 @@ export default function MyPage() {
 
       <main style={{ padding: '20px 20px' }}>
         {tab === 'profile' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div>
-                <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 6 }}>이름</label>
-                <input style={inp} type="text" value={inf.name || ''} onChange={e => set('name', e.target.value)} />
-              </div>
-              <div>
-                <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 6 }}>인스타 핸들</label>
-                <input style={inp} type="text" value={inf.handle || ''} onChange={e => set('handle', e.target.value)} />
-              </div>
-            </div>
-            <div>
-              <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 6 }}>연락처</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={3} placeholder="010" value={phoneParts[0] || ''} onChange={e => setPhonePart(0, e.target.value)} />
-                <span style={{ color: 'rgba(33,26,51,.3)' }}>-</span>
-                <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={4} placeholder="0000" value={phoneParts[1] || ''} onChange={e => setPhonePart(1, e.target.value)} />
-                <span style={{ color: 'rgba(33,26,51,.3)' }}>-</span>
-                <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={4} placeholder="0000" value={phoneParts[2] || ''} onChange={e => setPhonePart(2, e.target.value)} />
-              </div>
-            </div>
-
-            {/* 협업 단가 */}
-            <div style={{ borderTop: '1px solid rgba(33,26,51,.08)', paddingTop: 16 }}>
-              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', marginBottom: 6 }}>협업 단가 (만원)</p>
-              <p style={{ fontSize: 12, color: 'rgba(33,26,51,.5)', lineHeight: 1.5, marginBottom: 12 }}>희망 협업 단가를 자유롭게 입력해 주세요. 매칭 시 참고합니다.</p>
-              {[
-                { label: '인스타 피드', minK: 'ig_feed_min', maxK: 'ig_feed_max' },
-                { label: '인스타 릴스', minK: 'ig_reels_min', maxK: 'ig_reels_max' },
-                { label: '유튜브 쇼츠', minK: 'yt_shorts_min', maxK: 'yt_shorts_max' },
-                { label: '유튜브 롱폼', minK: 'yt_video_min', maxK: 'yt_video_max' },
-              ].map(f => (
-                <div key={f.minK} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: 13, color: 'rgba(33,26,51,.6)', minWidth: 90 }}>{f.label}</span>
-                  <input style={{ ...inp, width: 64, padding: '9px 10px', textAlign: 'right' }} type="number"
-                    value={(inf as any)[f.minK] || ''} onChange={e => set(f.minK, e.target.value)} />
-                  <span style={{ color: 'rgba(33,26,51,.3)' }}>–</span>
-                  <input style={{ ...inp, width: 64, padding: '9px 10px', textAlign: 'right' }} type="number"
-                    value={(inf as any)[f.maxK] || ''} onChange={e => set(f.maxK, e.target.value)} />
-                  <span style={{ fontSize: 12, color: 'rgba(33,26,51,.4)' }}>만원</span>
-                </div>
-              ))}
-            </div>
-
-            {/* 계좌 정보 */}
-            <div style={{ borderTop: '1px solid rgba(33,26,51,.08)', paddingTop: 16 }}>
-              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', marginBottom: 12 }}>정산 계좌</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div>
-                    <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>은행</label>
-                    <select style={inp} value={inf.bank_name || ''} onChange={e => set('bank_name', e.target.value)}>
-                      <option value="">은행 선택</option>
-                      {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* 섹션 1: 기본 정보 */}
+            <div style={secCard}>
+              <button type="button" style={secBtn} onClick={() => toggleSec('basic')}>
+                <span>기본 정보</span>{chevron(openSec.basic)}
+              </button>
+              {openSec.basic && (
+                <div style={secBody}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    <div>
+                      <label style={microLbl}>이름</label>
+                      <input style={inp} type="text" value={inf.name || ''} onChange={e => set('name', e.target.value)} />
+                    </div>
+                    <div>
+                      <label style={microLbl}>인스타 핸들</label>
+                      <input style={inp} type="text" value={inf.handle || ''} onChange={e => set('handle', e.target.value)} />
+                    </div>
                   </div>
                   <div>
-                    <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>예금주</label>
-                    <input style={inp} type="text" placeholder="홍길동" value={inf.account_holder || ''} onChange={e => set('account_holder', e.target.value)} />
+                    <label style={microLbl}>연락처</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={3} placeholder="010" value={phoneParts[0] || ''} onChange={e => setPhonePart(0, e.target.value)} />
+                      <span style={{ color: 'rgba(33,26,51,.3)' }}>-</span>
+                      <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={4} placeholder="0000" value={phoneParts[1] || ''} onChange={e => setPhonePart(1, e.target.value)} />
+                      <span style={{ color: 'rgba(33,26,51,.3)' }}>-</span>
+                      <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={4} placeholder="0000" value={phoneParts[2] || ''} onChange={e => setPhonePart(2, e.target.value)} />
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>계좌번호</label>
-                  <input style={inp} type="text" placeholder="계좌번호 입력" value={inf.bank_account || ''} onChange={e => set('bank_account', e.target.value)} />
+              )}
+            </div>
+
+            {/* 섹션 2: 협업 단가 */}
+            <div style={secCard}>
+              <button type="button" style={secBtn} onClick={() => toggleSec('rate')}>
+                <span>협업 단가</span>{chevron(openSec.rate)}
+              </button>
+              {openSec.rate && (
+                <div style={secBody}>
+                  <p style={{ fontSize: 12, color: 'rgba(33,26,51,.5)', lineHeight: 1.5, marginBottom: 12 }}>희망 협업 단가를 자유롭게 입력해 주세요. 매칭 시 참고합니다. (단위: 만원)</p>
+                  {[
+                    { label: '인스타 피드', minK: 'ig_feed_min', maxK: 'ig_feed_max' },
+                    { label: '인스타 릴스', minK: 'ig_reels_min', maxK: 'ig_reels_max' },
+                    { label: '유튜브 쇼츠', minK: 'yt_shorts_min', maxK: 'yt_shorts_max' },
+                    { label: '유튜브 롱폼', minK: 'yt_video_min', maxK: 'yt_video_max' },
+                  ].map(f => (
+                    <div key={f.minK} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 13, color: 'rgba(33,26,51,.6)', minWidth: 90 }}>{f.label}</span>
+                      <input style={{ ...inp, width: 64, padding: '9px 10px', textAlign: 'right' }} type="number"
+                        value={(inf as any)[f.minK] || ''} onChange={e => set(f.minK, e.target.value)} />
+                      <span style={{ color: 'rgba(33,26,51,.3)' }}>–</span>
+                      <input style={{ ...inp, width: 64, padding: '9px 10px', textAlign: 'right' }} type="number"
+                        value={(inf as any)[f.maxK] || ''} onChange={e => set(f.maxK, e.target.value)} />
+                      <span style={{ fontSize: 12, color: 'rgba(33,26,51,.4)' }}>만원</span>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>주민등록번호 (정산 세금 신고용)</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={6} placeholder="앞 6자리" value={rrnParts[0] || ''} onChange={e => setRrnPart(0, e.target.value)} />
-                    <span style={{ color: 'rgba(33,26,51,.3)' }}>-</span>
-                    <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" type="password" maxLength={7} placeholder="뒤 7자리" value={rrnParts[1] || ''} onChange={e => setRrnPart(1, e.target.value)} />
+              )}
+            </div>
+
+            {/* 섹션 3: 정산 계좌 */}
+            <div style={secCard}>
+              <button type="button" style={secBtn} onClick={() => toggleSec('account')}>
+                <span>정산 계좌 · 세금정보</span>{chevron(openSec.account)}
+              </button>
+              {openSec.account && (
+                <div style={secBody}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={microLbl}>은행</label>
+                        <select style={inp} value={inf.bank_name || ''} onChange={e => set('bank_name', e.target.value)}>
+                          <option value="">은행 선택</option>
+                          {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={microLbl}>예금주</label>
+                        <input style={inp} type="text" placeholder="홍길동" value={inf.account_holder || ''} onChange={e => set('account_holder', e.target.value)} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={microLbl}>계좌번호</label>
+                      <input style={inp} type="text" placeholder="계좌번호 입력" value={inf.bank_account || ''} onChange={e => set('bank_account', e.target.value)} />
+                    </div>
+                    <div>
+                      <label style={microLbl}>주민등록번호 (정산 세금 신고용)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={6} placeholder="앞 6자리" value={rrnParts[0] || ''} onChange={e => setRrnPart(0, e.target.value)} />
+                        <span style={{ color: 'rgba(33,26,51,.3)' }}>-</span>
+                        <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" type="password" maxLength={7} placeholder="뒤 7자리" value={rrnParts[1] || ''} onChange={e => setRrnPart(1, e.target.value)} />
+                      </div>
+                      <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginTop: 5, lineHeight: 1.5 }}>🔒 정산 세금 신고에만 사용하며, 본인과 정산 담당자만 볼 수 있어요.</p>
+                    </div>
                   </div>
-                  <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginTop: 5, lineHeight: 1.5 }}>🔒 정산 세금 신고에만 사용하며, 본인과 정산 담당자만 볼 수 있어요.</p>
                 </div>
-              </div>
+              )}
             </div>
 
             <button onClick={handleSave} disabled={saving}
-              style={{ width: '100%', background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>
+              style={{ width: '100%', background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1, marginTop: 4 }}>
               {saved ? '저장됐어요 ✓' : saving ? '저장 중...' : '저장하기'}
             </button>
           </div>

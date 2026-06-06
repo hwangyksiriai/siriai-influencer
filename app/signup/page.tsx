@@ -20,6 +20,7 @@ const chip = (active: boolean): React.CSSProperties => ({
 })
 
 const CATEGORIES = ['뷰티', '패션', '라이프', '푸드', '여행', '육아', '피트니스']
+const BEAUTY_SUBS = ['색조', '스킨케어', '헤어', '바디', '향수', '네일']
 const GENDERS = ['여성', '남성']
 const REGIONS = ['서울', '경기', '인천', '부산', '대구', '대전', '광주', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
 
@@ -33,7 +34,15 @@ export default function SignupPage() {
   const [form, setForm] = useState({ email: '', password: '', name: '', handle: '', gender: '', region: '' })
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
-  const toggleCat = (c: string) => setCategories(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c])
+  const toggleCat = (c: string) => setCategories(p =>
+    p.includes(c)
+      ? p.filter(x => x !== c && !(c === '뷰티' && x.startsWith('뷰티/')))  // 뷰티 끄면 하위도 제거
+      : [...p, c]
+  )
+  const toggleSub = (sub: string) => {
+    const full = '뷰티/' + sub
+    setCategories(p => p.includes(full) ? p.filter(x => x !== full) : [...p, full])
+  }
   // 비밀번호: 영문 + 숫자 포함 8자 이상
   const pwValid = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(form.password)
 
@@ -180,6 +189,17 @@ export default function SignupPage() {
                   <button key={c} type="button" onClick={() => toggleCat(c)} style={chip(categories.includes(c))}>{c}</button>
                 ))}
               </div>
+              {/* #25 뷰티 선택 시 세부 분야 노출 */}
+              {categories.includes('뷰티') && (
+                <div style={{ marginTop: 10, padding: '12px 14px', background: 'rgba(221,208,239,.3)', borderRadius: 12 }}>
+                  <p style={{ fontSize: 11, color: 'rgba(33,26,51,.55)', marginBottom: 8 }}>뷰티 세부 분야 (복수 선택)</p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {BEAUTY_SUBS.map(s => (
+                      <button key={s} type="button" onClick={() => toggleSub(s)} style={chip(categories.includes('뷰티/' + s))}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             {error && <p style={{ fontSize: 12, color: '#e03', margin: 0 }}>{error}</p>}
             <button type="submit" disabled={loading}
