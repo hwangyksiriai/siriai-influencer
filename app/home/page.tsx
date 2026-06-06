@@ -10,6 +10,7 @@ interface Campaign {
   id: string
   name: string
   fee: string
+  category: string
   content_type: string
   upload_start: string
   upload_end: string
@@ -18,13 +19,22 @@ interface Campaign {
   brands: { name: string }
 }
 
-const FILTERS = ['전체', '뷰티', '패션', '라이프', '릴스', '피드']
+const CATEGORY_FILTERS = ['전체', '뷰티', '패션', '라이프', '푸드', '여행', '육아', '피트니스']
+const TYPE_FILTERS = ['전체', '릴스', '피드']
+const chip = (active: boolean): React.CSSProperties => ({
+  borderRadius: 99, padding: '6px 14px', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap',
+  border: '1.5px solid', transition: 'all .15s', cursor: 'pointer',
+  borderColor: active ? '#211A33' : 'rgba(33,26,51,.2)',
+  background: active ? '#211A33' : 'transparent',
+  color: active ? '#F3EEE2' : 'rgba(33,26,51,.6)',
+})
 
 export default function HomePage() {
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('전체')
+  const [catFilter, setCatFilter] = useState('전체')
+  const [typeFilter, setTypeFilter] = useState('전체')
   const [userName, setUserName] = useState('')
 
   useEffect(() => {
@@ -56,10 +66,9 @@ export default function HomePage() {
   }
 
   const filtered = campaigns.filter(c => {
-    if (filter === '전체') return true
-    if (filter === '릴스') return c.content_type?.includes('릴스')
-    if (filter === '피드') return c.content_type?.includes('피드')
-    return true
+    const matchCat = catFilter === '전체' || c.category === catFilter
+    const matchType = typeFilter === '전체' || c.content_type?.includes(typeFilter)
+    return matchCat && matchType
   })
 
   return (
@@ -78,14 +87,18 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 필터 */}
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 12, scrollbarWidth: 'none' }}>
-          {FILTERS.map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              style={{ borderRadius: 99, padding: '6px 14px', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', border: '1.5px solid', transition: 'all .15s', cursor: 'pointer', borderColor: filter === f ? '#211A33' : 'rgba(33,26,51,.2)', background: filter === f ? '#211A33' : 'transparent', color: filter === f ? '#F3EEE2' : 'rgba(33,26,51,.6)' }}>
-              {f}
-            </button>
-          ))}
+        {/* 필터: 카테고리 + 콘텐츠 타입 */}
+        <div style={{ paddingBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 6 }}>
+            {CATEGORY_FILTERS.map(f => (
+              <button key={f} onClick={() => setCatFilter(f)} style={chip(catFilter === f)}>{f}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>
+            {TYPE_FILTERS.map(f => (
+              <button key={f} onClick={() => setTypeFilter(f)} style={chip(typeFilter === f)}>{f}</button>
+            ))}
+          </div>
         </div>
       </div>
 

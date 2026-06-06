@@ -16,11 +16,14 @@ interface Campaign {
   collab_required: boolean
   second_use_required: boolean
   collab_handle: string
+  collab_handles: string[]
+  category: string
   hashtags: string
   brand_description: string
   product_name: string
   product_link: string
   product_photo_url: string
+  products: { name: string; link: string; photo_url: string }[]
   guide_must: string
   guide_forbidden: string
   guide_recommended: string
@@ -88,6 +91,14 @@ export default function CampaignDetailPage() {
   if (loading) return <div style={{ minHeight: '100vh', background: '#F3EEE2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'rgba(33,26,51,.4)' }}>불러오는 중...</p></div>
   if (!campaign) return null
 
+  // 여러 제품 / 여러 공동작업자 (구버전 단일 필드는 폴백으로 지원)
+  const products = (campaign.products && campaign.products.length)
+    ? campaign.products
+    : (campaign.product_name ? [{ name: campaign.product_name, link: campaign.product_link, photo_url: campaign.product_photo_url }] : [])
+  const collabs: string[] = (campaign.collab_handles && campaign.collab_handles.length)
+    ? campaign.collab_handles
+    : (campaign.collab_handle ? [campaign.collab_handle] : [])
+
   return (
     <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 100 }}>
       {/* 헤더 */}
@@ -99,8 +110,8 @@ export default function CampaignDetailPage() {
 
       {/* 히어로 */}
       <div style={{ width: '100%', aspectRatio: '4/3', background: 'linear-gradient(135deg, #f0ece2, #e8e4d8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {campaign.product_photo_url
-          ? <img src={campaign.product_photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {(campaign.product_photo_url || products[0]?.photo_url)
+          ? <img src={campaign.product_photo_url || products[0].photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <span style={{ fontFamily: "'Helvetica Neue',sans-serif", fontSize: 13, fontWeight: 500, letterSpacing: '.1em', color: 'rgba(33,26,51,.35)', textTransform: 'uppercase' }}>{campaign.brands?.name}</span>
         }
       </div>
@@ -162,14 +173,21 @@ export default function CampaignDetailPage() {
       )}
 
       {/* 제품 정보 */}
-      {campaign.product_name && (
+      {products.length > 0 && (
         <div style={sec}>
           <p style={lbl}>제공 제품</p>
-          <div style={{ background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 12, padding: '14px' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: '#211A33', marginBottom: 4 }}>{campaign.product_name}</p>
-            {campaign.product_link && (
-              <a href={campaign.product_link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2A6FDB', textDecoration: 'none' }}>제품 링크 보기 ↗</a>
-            )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {products.map((p, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 12, padding: '14px', display: 'flex', gap: 12, alignItems: 'center' }}>
+                {p.photo_url && <img src={p.photo_url} alt="" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#211A33', marginBottom: 4 }}>{p.name}</p>
+                  {p.link && (
+                    <a href={p.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2A6FDB', textDecoration: 'none' }}>제품 링크 보기 ↗</a>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -206,21 +224,21 @@ export default function CampaignDetailPage() {
       )}
 
       {/* 업로드 가이드 */}
-      {(campaign.collab_handle || campaign.caption_must || campaign.hashtags) && (
+      {(collabs.length > 0 || campaign.caption_must || campaign.hashtags) && (
         <div style={sec}>
           <p style={lbl}>업로드 가이드</p>
-          {campaign.collab_handle && (
-            <div style={{ background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 10, padding: '12px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {collabs.map((h, i) => (
+            <div key={i} style={{ background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 10, padding: '12px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginBottom: 4 }}>공동작업자 계정</p>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#211A33' }}>{campaign.collab_handle}</p>
+                <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginBottom: 4 }}>공동작업자 계정{collabs.length > 1 ? ` ${i + 1}` : ''}</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#211A33' }}>{h}</p>
               </div>
-              <button onClick={() => copy(campaign.collab_handle, 'collab')}
-                style={{ background: copied === 'collab' ? '#211A33' : 'rgba(33,26,51,.08)', color: copied === 'collab' ? '#F3EEE2' : '#211A33', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 12, cursor: 'pointer', transition: 'all .2s' }}>
-                {copied === 'collab' ? '복사됨 ✓' : '복사'}
+              <button onClick={() => copy(h, 'collab' + i)}
+                style={{ background: copied === 'collab' + i ? '#211A33' : 'rgba(33,26,51,.08)', color: copied === 'collab' + i ? '#F3EEE2' : '#211A33', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 12, cursor: 'pointer', transition: 'all .2s' }}>
+                {copied === 'collab' + i ? '복사됨 ✓' : '복사'}
               </button>
             </div>
-          )}
+          ))}
           {campaign.caption_must && (
             <div style={{ background: 'rgba(33,26,51,.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#211A33', marginBottom: 6 }}>✅ 캡션 필수 사항</p>
