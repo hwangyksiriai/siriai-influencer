@@ -178,6 +178,7 @@ export default function CampaignDetailPage() {
             {campaign.timeline_shipping_date && <div style={infoRow}><span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>제품 발송</span><span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.timeline_shipping_date}</span></div>}
             {campaign.upload_start && <div style={{ ...infoRow, borderBottom: 'none' }}><span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>콘텐츠 업로드</span><span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.upload_start} ~ {campaign.upload_end}</span></div>}
           </div>
+          <p style={{ fontSize: 11, color: 'rgba(33,26,51,.45)', marginTop: 10, lineHeight: 1.5 }}>ⓘ 타임라인은 캠페인 진행 상황에 따라 조금씩 변동될 수 있어요.</p>
         </div>
       )}
 
