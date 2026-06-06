@@ -8,6 +8,9 @@ interface Campaign {
   id: string
   name: string
   fee: string
+  fee_amount: number
+  product_value: number
+  image_url: string
   content_type: string
   content_duration: number
   content_count: number
@@ -112,8 +115,8 @@ export default function CampaignDetailPage() {
 
       {/* 히어로 */}
       <div style={{ width: '100%', aspectRatio: '4/3', background: 'linear-gradient(135deg, #f0ece2, #e8e4d8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {(campaign.product_photo_url || products[0]?.photo_url)
-          ? <img src={campaign.product_photo_url || products[0].photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {(campaign.image_url || campaign.product_photo_url || products[0]?.photo_url)
+          ? <img src={campaign.image_url || campaign.product_photo_url || products[0].photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <span style={{ fontFamily: "'Helvetica Neue',sans-serif", fontSize: 13, fontWeight: 500, letterSpacing: '.1em', color: 'rgba(33,26,51,.35)', textTransform: 'uppercase' }}>{campaign.brands?.name}</span>
         }
       </div>
@@ -124,7 +127,7 @@ export default function CampaignDetailPage() {
         <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.25, color: '#211A33', marginBottom: 10 }}>{campaign.name}</h1>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ border: '1px solid rgba(33,26,51,.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: 'rgba(33,26,51,.6)' }}>{campaign.content_type}</span>
-          {campaign.fee && <span style={{ border: '1px solid rgba(33,26,51,.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: 'rgba(33,26,51,.6)' }}>🎁 {campaign.fee}</span>}
+          {(campaign.product_value || campaign.fee) && <span style={{ border: '1px solid rgba(33,26,51,.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: 'rgba(33,26,51,.6)' }}>🎁 {campaign.product_value ? `${campaign.product_value.toLocaleString()}원 상당` : campaign.fee}</span>}
           {campaign.collab_required && <span style={{ background: '#2A6FDB', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>공동작업 필수</span>}
           {campaign.second_use_required && <span style={{ background: '#e65100', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>2차활용 필수</span>}
         </div>
@@ -146,10 +149,10 @@ export default function CampaignDetailPage() {
             <span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>콘텐츠 형식</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.content_type}{campaign.content_duration ? ` (${campaign.content_duration}초 이상)` : ''}{campaign.content_count ? ` (${campaign.content_count}장 이상)` : ''}</span>
           </div>
-          {campaign.fee && (
+          {(campaign.fee_amount || campaign.fee) && (
             <div style={infoRow}>
               <span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>고료</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.fee}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#e65100' }}>{campaign.fee_amount ? `${campaign.fee_amount.toLocaleString()}원` : campaign.fee}</span>
             </div>
           )}
           {campaign.upload_start && (
@@ -264,6 +267,12 @@ export default function CampaignDetailPage() {
 
       {/* 신청 버튼 */}
       <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, background: '#F3EEE2', borderTop: '1px solid rgba(33,26,51,.1)', padding: '12px 20px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
+        {(campaign.fee_amount || campaign.fee) && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: 'rgba(33,26,51,.45)' }}>고료</span>
+            <span style={{ fontSize: 17, fontWeight: 800, color: '#e65100' }}>{campaign.fee_amount ? `${campaign.fee_amount.toLocaleString()}원` : campaign.fee}</span>
+          </div>
+        )}
         <button onClick={() => !alreadyApplied && setShowApply(true)} disabled={alreadyApplied}
           style={{ width: '100%', background: alreadyApplied ? 'rgba(33,26,51,.2)' : '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: alreadyApplied ? 'default' : 'pointer' }}>
           {alreadyApplied ? '신청 완료' : '캠페인 신청하기'}

@@ -10,6 +10,8 @@ interface Campaign {
   id: string
   name: string
   fee: string
+  fee_amount: number
+  image_url: string
   category: string
   content_type: string
   upload_start: string
@@ -117,6 +119,7 @@ export default function HomePage() {
                 <div style={{ background: '#fff', cursor: 'pointer', borderRadius: 2, overflow: 'hidden' }}>
                   {/* 썸네일 */}
                   <div style={{ width: '100%', aspectRatio: '3/4', background: 'linear-gradient(135deg, #f0ece2, #e8e4d8)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                    {c.image_url && <img src={c.image_url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
                     <span style={{ fontFamily: "'Helvetica Neue',sans-serif", fontSize: 11, fontWeight: 500, letterSpacing: '.08em', color: 'rgba(33,26,51,.4)', textTransform: 'uppercase' }}>{c.brands?.name}</span>
                     {c.upload_end && (
                       <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(33,26,51,.7)', color: '#F3EEE2', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 99 }}>
@@ -132,7 +135,7 @@ export default function HomePage() {
                   <div style={{ padding: '8px 10px 12px' }}>
                     <p style={{ fontSize: 10, color: 'rgba(33,26,51,.4)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 2 }}>{c.brands?.name}</p>
                     <p style={{ fontSize: 12, fontWeight: 700, color: '#211A33', lineHeight: 1.3, marginBottom: 3 }}>{c.name}</p>
-                    {c.fee && <p style={{ fontSize: 11, color: 'rgba(33,26,51,.6)' }}>🎁 {c.fee}</p>}
+                    {(c.fee_amount || c.fee) && <p style={{ fontSize: 12, fontWeight: 700, color: '#e65100' }}>{c.fee_amount ? `${c.fee_amount.toLocaleString()}원` : c.fee}</p>}
                     <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
                       <span style={{ background: 'rgba(33,26,51,.07)', padding: '2px 7px', borderRadius: 4, fontSize: 10, color: 'rgba(33,26,51,.6)' }}>{c.content_type}</span>
                     </div>
