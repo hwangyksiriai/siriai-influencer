@@ -11,6 +11,7 @@ interface Campaign {
   name: string
   fee: string
   fee_amount: number
+  product_value: number
   image_url: string
   category: string
   content_type: string
@@ -135,7 +136,8 @@ export default function HomePage() {
                   <div style={{ padding: '8px 10px 12px' }}>
                     <p style={{ fontSize: 10, color: 'rgba(33,26,51,.4)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 2 }}>{c.brands?.name}</p>
                     <p style={{ fontSize: 12, fontWeight: 700, color: '#211A33', lineHeight: 1.3, marginBottom: 3 }}>{c.name}</p>
-                    {(c.fee_amount || c.fee) && <p style={{ fontSize: 12, fontWeight: 700, color: '#e65100' }}>{c.fee_amount ? `${c.fee_amount.toLocaleString()}원` : c.fee}</p>}
+                    {c.product_value ? <p style={{ fontSize: 11, color: 'rgba(33,26,51,.55)', marginBottom: 2 }}>🎁 {c.product_value.toLocaleString()}원 상당</p> : null}
+                    {(c.fee_amount || c.fee) && <p style={{ fontSize: 12, fontWeight: 800, color: '#e65100' }}>💵 {c.fee_amount ? `${c.fee_amount.toLocaleString()}원` : c.fee}</p>}
                     <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
                       <span style={{ background: 'rgba(33,26,51,.07)', padding: '2px 7px', borderRadius: 4, fontSize: 10, color: 'rgba(33,26,51,.6)' }}>{c.content_type}</span>
                     </div>

@@ -124,10 +124,14 @@ export default function CampaignDetailPage() {
       {/* 기본 정보 */}
       <div style={{ padding: '20px 20px 0' }}>
         <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(33,26,51,.4)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 4 }}>{campaign.brands?.name}</p>
-        <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.25, color: '#211A33', marginBottom: 10 }}>{campaign.name}</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.25, color: '#211A33', marginBottom: 8 }}>{campaign.name}</h1>
+        {(campaign.product_value || campaign.fee) && (
+          <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: 'rgba(33,26,51,.7)', marginBottom: 12 }}>
+            🎁 <span style={{ fontWeight: 600 }}>{campaign.product_value ? `${campaign.product_value.toLocaleString()}원 상당` : campaign.fee}</span>
+          </p>
+        )}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ border: '1px solid rgba(33,26,51,.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: 'rgba(33,26,51,.6)' }}>{campaign.content_type}</span>
-          {(campaign.product_value || campaign.fee) && <span style={{ border: '1px solid rgba(33,26,51,.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: 'rgba(33,26,51,.6)' }}>🎁 {campaign.product_value ? `${campaign.product_value.toLocaleString()}원 상당` : campaign.fee}</span>}
           {campaign.collab_required && <span style={{ background: '#2A6FDB', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>공동작업 필수</span>}
           {campaign.second_use_required && <span style={{ background: '#e65100', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>2차활용 필수</span>}
         </div>
@@ -268,9 +272,9 @@ export default function CampaignDetailPage() {
       {/* 신청 버튼 */}
       <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, background: '#F3EEE2', borderTop: '1px solid rgba(33,26,51,.1)', padding: '12px 20px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
         {(campaign.fee_amount || campaign.fee) && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: 'rgba(33,26,51,.45)' }}>고료</span>
-            <span style={{ fontSize: 17, fontWeight: 800, color: '#e65100' }}>{campaign.fee_amount ? `${campaign.fee_amount.toLocaleString()}원` : campaign.fee}</span>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: 'rgba(33,26,51,.45)' }}>고료</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: '#e65100' }}>💵 {campaign.fee_amount ? `${campaign.fee_amount.toLocaleString()}원` : campaign.fee}</span>
           </div>
         )}
         <button onClick={() => !alreadyApplied && setShowApply(true)} disabled={alreadyApplied}
