@@ -81,20 +81,23 @@ export default function HomePage() {
     <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 80 }}>
       {/* 헤더 */}
       <div style={{ padding: '20px 20px 0', background: '#F3EEE2', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid rgba(33,26,51,.08)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        {/* 로고 */}
+        <img src="/siriai-logo.png" alt="SIRIAI" style={{ height: 34, width: 'auto', display: 'block', marginBottom: 12 }} />
+
+        {/* 인사 + 알림 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <p style={{ fontSize: 12, color: 'rgba(33,26,51,.5)', marginBottom: 2 }}>{userName}님</p>
-            <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>캠페인</h1>
+            <p style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.3px', color: '#211A33' }}>{userName}님</p>
+            <p style={{ fontSize: 13, color: 'rgba(33,26,51,.5)', marginTop: 2 }}>SIRIAI 캠페인에 오신 걸 환영해요</p>
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6 }}>
-              <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            </button>
-          </div>
+          <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6 }}>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
         </div>
 
-        {/* 툴바: 필터 (캠페인 목록 위, 오른쪽) */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 12 }}>
+        {/* 캠페인 제목 + 필터 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingBottom: 12 }}>
+          <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>캠페인</h1>
           <button onClick={() => setShowFilter(v => !v)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: (showFilter || activeCount) ? '#211A33' : 'rgba(33,26,51,.06)', color: (showFilter || activeCount) ? '#F3EEE2' : '#211A33', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
