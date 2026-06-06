@@ -1,0 +1,233 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+import BottomNav from '@/components/BottomNav'
+
+interface Influencer {
+  id: string
+  name: string
+  handle: string
+  followers: number
+  category: string[]
+  email: string
+  phone: string
+  bank_name: string
+  bank_account: string
+  account_holder: string
+  ig_feed_min: number
+  ig_feed_max: number
+  ig_reels_min: number
+  ig_reels_max: number
+}
+
+interface Settlement {
+  id: string
+  amount: number
+  status: string
+  paid_at: string
+  submissions: { applications: { campaigns: { name: string } } }
+}
+
+const inp: React.CSSProperties = {
+  width: '100%', background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.18)',
+  borderRadius: 10, padding: '11px 14px', fontSize: 14, color: '#211A33',
+  fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+}
+
+const statusLabel: Record<string, string> = { pending: '지급예정', paid: '지급완료', cancelled: '취소' }
+const statusColor: Record<string, string> = { pending: '#e65100', paid: '#2e7d32', cancelled: 'rgba(33,26,51,.4)' }
+
+export default function MyPage() {
+  const router = useRouter()
+  const [inf, setInf] = useState<Influencer | null>(null)
+  const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [tab, setTab] = useState<'profile' | 'settlement'>('profile')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) { router.replace('/login'); return }
+      const uid = data.session.user.id
+      const { data: influencer } = await supabase.from('influencers').select('*').eq('id', uid).single()
+      if (influencer) setInf(influencer as Influencer)
+      const { data: setts } = await supabase
+        .from('settlements')
+        .select('*, submissions(applications(campaigns(name)))')
+        .eq('influencer_id', uid)
+        .order('created_at', { ascending: false })
+      setSettlements((setts as Settlement[]) || [])
+    })
+  }, [])
+
+  const set = (k: string, v: any) => setInf(i => i ? { ...i, [k]: v } : i)
+
+  async function handleSave() {
+    if (!inf) return
+    setSaving(true)
+    await supabase.from('influencers').update({
+      name: inf.name, handle: inf.handle, phone: inf.phone,
+      bank_name: inf.bank_name, bank_account: inf.bank_account, account_holder: inf.account_holder,
+      ig_feed_min: inf.ig_feed_min, ig_feed_max: inf.ig_feed_max,
+      ig_reels_min: inf.ig_reels_min, ig_reels_max: inf.ig_reels_max,
+    }).eq('id', inf.id)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.replace('/login')
+  }
+
+  const totalPending = settlements.filter(s => s.status === 'pending').reduce((sum, s) => sum + (s.amount || 0), 0)
+  const totalPaid = settlements.filter(s => s.status === 'paid').reduce((sum, s) => sum + (s.amount || 0), 0)
+
+  if (!inf) return <div style={{ minHeight: '100vh', background: '#F3EEE2' }}><BottomNav /></div>
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 80 }}>
+      {/* 헤더 */}
+      <div style={{ padding: '20px 20px 0', borderBottom: '1px solid rgba(33,26,51,.08)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>마이</h1>
+          <button onClick={handleLogout} style={{ background: 'none', border: 'none', fontSize: 12, color: 'rgba(33,26,51,.4)', cursor: 'pointer' }}>로그아웃</button>
+        </div>
+
+        {/* 프로필 요약 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(33,26,51,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>🙋</div>
+          <div>
+            <p style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>{inf.name}</p>
+            <p style={{ fontSize: 13, color: 'rgba(33,26,51,.5)', marginTop: 2 }}>@{inf.handle} · {inf.followers?.toLocaleString()}명</p>
+            <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+              {(inf.category || []).map(c => (
+                <span key={c} style={{ background: 'rgba(33,26,51,.08)', borderRadius: 100, padding: '2px 8px', fontSize: 10, color: 'rgba(33,26,51,.6)' }}>{c}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 탭 */}
+        <div style={{ display: 'flex', gap: 0 }}>
+          {[['profile', '프로필 편집'], ['settlement', '정산 내역']] .map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k as any)}
+              style={{ background: 'none', border: 'none', borderBottom: tab === k ? '2px solid #211A33' : '2px solid transparent', padding: '8px 14px', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? '#211A33' : 'rgba(33,26,51,.4)', cursor: 'pointer', marginBottom: -1 }}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <main style={{ padding: '20px 20px' }}>
+        {tab === 'profile' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 6 }}>이름</label>
+                <input style={inp} type="text" value={inf.name || ''} onChange={e => set('name', e.target.value)} />
+              </div>
+              <div>
+                <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 6 }}>인스타 핸들</label>
+                <input style={inp} type="text" value={inf.handle || ''} onChange={e => set('handle', e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 6 }}>연락처</label>
+              <input style={inp} type="text" value={inf.phone || ''} onChange={e => set('phone', e.target.value)} />
+            </div>
+
+            {/* 협업 단가 */}
+            <div style={{ borderTop: '1px solid rgba(33,26,51,.08)', paddingTop: 16 }}>
+              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', marginBottom: 12 }}>협업 단가 (만원)</p>
+              {[
+                { label: '인스타 피드', minK: 'ig_feed_min', maxK: 'ig_feed_max' },
+                { label: '인스타 릴스', minK: 'ig_reels_min', maxK: 'ig_reels_max' },
+              ].map(f => (
+                <div key={f.minK} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: 'rgba(33,26,51,.6)', minWidth: 90 }}>{f.label}</span>
+                  <input style={{ ...inp, width: 64, padding: '9px 10px', textAlign: 'right' }} type="number"
+                    value={(inf as any)[f.minK] || ''} onChange={e => set(f.minK, e.target.value)} />
+                  <span style={{ color: 'rgba(33,26,51,.3)' }}>–</span>
+                  <input style={{ ...inp, width: 64, padding: '9px 10px', textAlign: 'right' }} type="number"
+                    value={(inf as any)[f.maxK] || ''} onChange={e => set(f.maxK, e.target.value)} />
+                  <span style={{ fontSize: 12, color: 'rgba(33,26,51,.4)' }}>만원</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 계좌 정보 */}
+            <div style={{ borderTop: '1px solid rgba(33,26,51,.08)', paddingTop: 16 }}>
+              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', marginBottom: 12 }}>정산 계좌</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>은행</label>
+                    <input style={inp} type="text" placeholder="카카오뱅크" value={inf.bank_name || ''} onChange={e => set('bank_name', e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>예금주</label>
+                    <input style={inp} type="text" placeholder="홍길동" value={inf.account_holder || ''} onChange={e => set('account_holder', e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>계좌번호</label>
+                  <input style={inp} type="text" placeholder="계좌번호 입력" value={inf.bank_account || ''} onChange={e => set('bank_account', e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <button onClick={handleSave} disabled={saving}
+              style={{ width: '100%', background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>
+              {saved ? '저장됐어요 ✓' : saving ? '저장 중...' : '저장하기'}
+            </button>
+          </div>
+        )}
+
+        {tab === 'settlement' && (
+          <div>
+            {/* 요약 */}
+            <div style={{ background: '#211A33', borderRadius: 14, padding: '18px', color: '#F3EEE2', marginBottom: 20 }}>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>지급 예정</p>
+              <p style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-1px', marginBottom: 14 }}>{totalPending.toLocaleString()}원</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,.15)' }}>
+                <div>
+                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', marginBottom: 2 }}>지급 완료</p>
+                  <p style={{ fontSize: 15, fontWeight: 700 }}>{totalPaid.toLocaleString()}원</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', marginBottom: 2 }}>총 건수</p>
+                  <p style={{ fontSize: 15, fontWeight: 700 }}>{settlements.length}건</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 내역 */}
+            {settlements.length === 0 ? (
+              <p style={{ fontSize: 14, color: 'rgba(33,26,51,.5)', textAlign: 'center', padding: '40px 0' }}>정산 내역이 없어요.</p>
+            ) : (
+              settlements.map(s => (
+                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '14px 0', borderBottom: '1px solid rgba(33,26,51,.07)' }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#211A33', marginBottom: 3 }}>{s.submissions?.applications?.campaigns?.name || '캠페인'}</p>
+                    <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)' }}>{s.paid_at ? new Date(s.paid_at).toLocaleDateString('ko-KR') : '-'}</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#211A33', marginBottom: 3 }}>{s.amount?.toLocaleString()}원</p>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: statusColor[s.status] }}>{statusLabel[s.status]}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </main>
+
+      <BottomNav />
+    </div>
+  )
+}

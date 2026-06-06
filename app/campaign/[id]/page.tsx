@@ -1,0 +1,279 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+
+interface Campaign {
+  id: string
+  name: string
+  fee: string
+  content_type: string
+  content_duration: number
+  content_count: number
+  upload_start: string
+  upload_end: string
+  collab_required: boolean
+  second_use_required: boolean
+  collab_handle: string
+  hashtags: string
+  brand_description: string
+  product_name: string
+  product_link: string
+  product_photo_url: string
+  guide_must: string
+  guide_forbidden: string
+  guide_recommended: string
+  guide_file_url: string
+  caption_must: string
+  caption_forbidden: string
+  caption_recommended: string
+  timeline_apply_end: string
+  timeline_selection_date: string
+  timeline_shipping_date: string
+  brands: { name: string }
+}
+
+const sec = { padding: '20px 20px', borderTop: '8px solid rgba(33,26,51,.05)' }
+const lbl: React.CSSProperties = { fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'rgba(33,26,51,.4)', marginBottom: 8 }
+const infoRow = { display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(33,26,51,.07)' }
+
+export default function CampaignDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
+  const [campaign, setCampaign] = useState<Campaign | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [applying, setApplying] = useState(false)
+  const [showApply, setShowApply] = useState(false)
+  const [address, setAddress] = useState('')
+  const [addressDetail, setAddressDetail] = useState('')
+  const [request, setRequest] = useState('')
+  const [userId, setUserId] = useState('')
+  const [alreadyApplied, setAlreadyApplied] = useState(false)
+  const [copied, setCopied] = useState('')
+
+  useEffect(() => {
+    supabase.from('campaigns').select('*, brands(name)').eq('id', id).single().then(({ data }) => {
+      setCampaign(data as Campaign)
+      setLoading(false)
+    })
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) { router.replace('/login'); return }
+      setUserId(data.session.user.id)
+      const { data: app } = await supabase.from('applications').select('id').eq('campaign_id', id).eq('influencer_id', data.session.user.id).single()
+      if (app) setAlreadyApplied(true)
+    })
+  }, [id])
+
+  async function handleApply() {
+    if (!address.trim()) return
+    setApplying(true)
+    await supabase.from('applications').insert([{
+      campaign_id: id,
+      influencer_id: userId,
+      address, address_detail: addressDetail, request,
+      status: 'pending',
+    }])
+    setApplying(false)
+    setShowApply(false)
+    setAlreadyApplied(true)
+  }
+
+  function copy(text: string, key: string) {
+    navigator.clipboard.writeText(text)
+    setCopied(key)
+    setTimeout(() => setCopied(''), 1500)
+  }
+
+  if (loading) return <div style={{ minHeight: '100vh', background: '#F3EEE2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'rgba(33,26,51,.4)' }}>불러오는 중...</p></div>
+  if (!campaign) return null
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 100 }}>
+      {/* 헤더 */}
+      <div style={{ position: 'sticky', top: 0, background: '#F3EEE2', zIndex: 10, borderBottom: '1px solid rgba(33,26,51,.1)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={() => router.back()} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2.5}><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+      </div>
+
+      {/* 히어로 */}
+      <div style={{ width: '100%', aspectRatio: '4/3', background: 'linear-gradient(135deg, #f0ece2, #e8e4d8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {campaign.product_photo_url
+          ? <img src={campaign.product_photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <span style={{ fontFamily: "'Helvetica Neue',sans-serif", fontSize: 13, fontWeight: 500, letterSpacing: '.1em', color: 'rgba(33,26,51,.35)', textTransform: 'uppercase' }}>{campaign.brands?.name}</span>
+        }
+      </div>
+
+      {/* 기본 정보 */}
+      <div style={{ padding: '20px 20px 0' }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(33,26,51,.4)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 4 }}>{campaign.brands?.name}</p>
+        <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.25, color: '#211A33', marginBottom: 10 }}>{campaign.name}</h1>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ border: '1px solid rgba(33,26,51,.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: 'rgba(33,26,51,.6)' }}>{campaign.content_type}</span>
+          {campaign.fee && <span style={{ border: '1px solid rgba(33,26,51,.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: 'rgba(33,26,51,.6)' }}>🎁 {campaign.fee}</span>}
+          {campaign.collab_required && <span style={{ background: '#2A6FDB', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>공동작업 필수</span>}
+          {campaign.second_use_required && <span style={{ background: '#e65100', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>2차활용 필수</span>}
+        </div>
+      </div>
+
+      {/* 브랜드 설명 */}
+      {campaign.brand_description && (
+        <div style={sec}>
+          <p style={lbl}>브랜드 소개</p>
+          <p style={{ fontSize: 14, color: 'rgba(33,26,51,.7)', lineHeight: 1.6 }}>{campaign.brand_description}</p>
+        </div>
+      )}
+
+      {/* 캠페인 개요 */}
+      <div style={sec}>
+        <p style={lbl}>캠페인 개요</p>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={infoRow}>
+            <span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>콘텐츠 형식</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.content_type}{campaign.content_duration ? ` (${campaign.content_duration}초 이상)` : ''}{campaign.content_count ? ` (${campaign.content_count}장 이상)` : ''}</span>
+          </div>
+          {campaign.fee && (
+            <div style={infoRow}>
+              <span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>고료</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.fee}</span>
+            </div>
+          )}
+          {campaign.upload_start && (
+            <div style={infoRow}>
+              <span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>업로드 기간</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#e03' }}>{campaign.upload_start} ~ {campaign.upload_end}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 타임라인 */}
+      {(campaign.timeline_apply_end || campaign.timeline_selection_date || campaign.timeline_shipping_date) && (
+        <div style={sec}>
+          <p style={lbl}>타임라인</p>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {campaign.timeline_apply_end && <div style={infoRow}><span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>신청 마감</span><span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.timeline_apply_end}</span></div>}
+            {campaign.timeline_selection_date && <div style={infoRow}><span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>선정자 발표</span><span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.timeline_selection_date}</span></div>}
+            {campaign.timeline_shipping_date && <div style={infoRow}><span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>제품 발송</span><span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.timeline_shipping_date}</span></div>}
+            {campaign.upload_start && <div style={{ ...infoRow, borderBottom: 'none' }}><span style={{ fontSize: 13, color: 'rgba(33,26,51,.5)' }}>콘텐츠 업로드</span><span style={{ fontSize: 13, fontWeight: 600, color: '#211A33' }}>{campaign.upload_start} ~ {campaign.upload_end}</span></div>}
+          </div>
+        </div>
+      )}
+
+      {/* 제품 정보 */}
+      {campaign.product_name && (
+        <div style={sec}>
+          <p style={lbl}>제공 제품</p>
+          <div style={{ background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 12, padding: '14px' }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#211A33', marginBottom: 4 }}>{campaign.product_name}</p>
+            {campaign.product_link && (
+              <a href={campaign.product_link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2A6FDB', textDecoration: 'none' }}>제품 링크 보기 ↗</a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 콘텐츠 제작 가이드 */}
+      {(campaign.guide_must || campaign.guide_forbidden || campaign.guide_recommended || campaign.guide_file_url) && (
+        <div style={sec}>
+          <p style={lbl}>콘텐츠 제작 가이드</p>
+          {campaign.guide_file_url && (
+            <a href={campaign.guide_file_url} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'block', background: 'rgba(42,111,219,.1)', border: '1px solid rgba(42,111,219,.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#2A6FDB', textDecoration: 'none', marginBottom: 12 }}>
+              📎 가이드 파일 보기 ↗
+            </a>
+          )}
+          {campaign.guide_must && (
+            <div style={{ background: 'rgba(33,26,51,.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#211A33', marginBottom: 6 }}>✅ 필수 사항</p>
+              <p style={{ fontSize: 13, color: 'rgba(33,26,51,.7)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{campaign.guide_must}</p>
+            </div>
+          )}
+          {campaign.guide_forbidden && (
+            <div style={{ background: 'rgba(224,0,51,.05)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#e03', marginBottom: 6 }}>🚫 금지 사항</p>
+              <p style={{ fontSize: 13, color: 'rgba(33,26,51,.7)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{campaign.guide_forbidden}</p>
+            </div>
+          )}
+          {campaign.guide_recommended && (
+            <div style={{ background: 'rgba(42,111,219,.05)', borderRadius: 10, padding: '12px 14px' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#2A6FDB', marginBottom: 6 }}>💡 추천 사항</p>
+              <p style={{ fontSize: 13, color: 'rgba(33,26,51,.7)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{campaign.guide_recommended}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 업로드 가이드 */}
+      {(campaign.collab_handle || campaign.caption_must || campaign.hashtags) && (
+        <div style={sec}>
+          <p style={lbl}>업로드 가이드</p>
+          {campaign.collab_handle && (
+            <div style={{ background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 10, padding: '12px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginBottom: 4 }}>공동작업자 계정</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#211A33' }}>{campaign.collab_handle}</p>
+              </div>
+              <button onClick={() => copy(campaign.collab_handle, 'collab')}
+                style={{ background: copied === 'collab' ? '#211A33' : 'rgba(33,26,51,.08)', color: copied === 'collab' ? '#F3EEE2' : '#211A33', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 12, cursor: 'pointer', transition: 'all .2s' }}>
+                {copied === 'collab' ? '복사됨 ✓' : '복사'}
+              </button>
+            </div>
+          )}
+          {campaign.caption_must && (
+            <div style={{ background: 'rgba(33,26,51,.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#211A33', marginBottom: 6 }}>✅ 캡션 필수 사항</p>
+              <p style={{ fontSize: 13, color: 'rgba(33,26,51,.7)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{campaign.caption_must}</p>
+            </div>
+          )}
+          {campaign.hashtags && (
+            <div style={{ background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ flex: 1, marginRight: 10 }}>
+                <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginBottom: 4 }}>필수 해시태그</p>
+                <p style={{ fontSize: 13, color: '#211A33', lineHeight: 1.5 }}>{campaign.hashtags}</p>
+              </div>
+              <button onClick={() => copy(campaign.hashtags, 'hash')}
+                style={{ background: copied === 'hash' ? '#211A33' : 'rgba(33,26,51,.08)', color: copied === 'hash' ? '#F3EEE2' : '#211A33', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 12, cursor: 'pointer', transition: 'all .2s', flexShrink: 0 }}>
+                {copied === 'hash' ? '복사됨 ✓' : '복사'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 신청 버튼 */}
+      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, background: '#F3EEE2', borderTop: '1px solid rgba(33,26,51,.1)', padding: '12px 20px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
+        <button onClick={() => !alreadyApplied && setShowApply(true)} disabled={alreadyApplied}
+          style={{ width: '100%', background: alreadyApplied ? 'rgba(33,26,51,.2)' : '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: alreadyApplied ? 'default' : 'pointer' }}>
+          {alreadyApplied ? '신청 완료' : '캠페인 신청하기'}
+        </button>
+      </div>
+
+      {/* 신청 모달 */}
+      {showApply && (
+        <div onClick={() => setShowApply(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', maxWidth: 430, left: '50%', transform: 'translateX(-50%)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '24px 20px 32px', width: '100%' }}>
+            <div style={{ width: 40, height: 4, background: 'rgba(33,26,51,.2)', borderRadius: 2, margin: '0 auto 20px' }} />
+            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 20, letterSpacing: '-0.5px' }}>캠페인 신청</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input placeholder="도로명 주소" value={address} onChange={e => setAddress(e.target.value)}
+                style={{ width: '100%', border: '1.5px solid rgba(33,26,51,.2)', borderRadius: 10, padding: '12px 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              <input placeholder="상세 주소 (동, 호수 등)" value={addressDetail} onChange={e => setAddressDetail(e.target.value)}
+                style={{ width: '100%', border: '1.5px solid rgba(33,26,51,.2)', borderRadius: 10, padding: '12px 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              <input placeholder="요청사항 (선택)" value={request} onChange={e => setRequest(e.target.value)}
+                style={{ width: '100%', border: '1.5px solid rgba(33,26,51,.2)', borderRadius: 10, padding: '12px 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              <div style={{ background: '#fff5f5', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: '#e03', lineHeight: 1.5 }}>
+                ⚠️ 배송지는 매 캠페인마다 새로 확인합니다. 정확히 입력해 주세요.
+              </div>
+              <button onClick={handleApply} disabled={applying || !address.trim()}
+                style={{ width: '100%', background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: applying ? .6 : 1 }}>
+                {applying ? '신청 중...' : '신청 완료'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
