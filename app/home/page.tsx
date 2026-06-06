@@ -23,7 +23,7 @@ interface Campaign {
 }
 
 interface AppRow { id: string; status: string; campaigns: { name: string; upload_start: string; upload_end: string } | null }
-interface Noti { icon: string; title: string; body: string }
+interface Noti { icon: string; title: string; body: string; href: string }
 
 const CATEGORY_FILTERS = ['전체', '뷰티', '패션', '라이프']
 const TYPE_FILTERS = ['전체', '릴스', '피드']
@@ -69,12 +69,12 @@ export default function HomePage() {
   const notis: Noti[] = apps.flatMap(a => {
     const name = a.campaigns?.name || '캠페인'
     if (a.status === 'in_progress') {
-      const arr: Noti[] = [{ icon: '🎉', title: `${name} 선정!`, body: '캠페인에 선정되었어요. 업로드를 준비해 주세요.' }]
-      if (a.campaigns?.upload_end) arr.push({ icon: '📅', title: `${name} 업로드 일정`, body: `${a.campaigns.upload_start || ''} ~ ${a.campaigns.upload_end}` })
+      const arr: Noti[] = [{ icon: '🎉', title: `${name} 선정!`, body: '캠페인에 선정되었어요. 신청 내역에서 확인하세요.', href: '/history' }]
+      if (a.campaigns?.upload_end) arr.push({ icon: '📅', title: `${name} 업로드 일정`, body: `${a.campaigns.upload_start || ''} ~ ${a.campaigns.upload_end} · 스케줄에서 보기`, href: '/schedule' })
       return arr
     }
-    if (a.status === 'not_done') return [{ icon: '🙏', title: `${name} 미선정`, body: '아쉽지만 이번엔 선정되지 않았어요.' }]
-    if (a.status === 'pending' || a.status === 'scouted') return [{ icon: '⏳', title: `${name} 심사 중`, body: '신청이 검토되고 있어요.' }]
+    if (a.status === 'not_done') return [{ icon: '🙏', title: `${name} 미선정`, body: '아쉽지만 이번엔 선정되지 않았어요.', href: '/history' }]
+    if (a.status === 'pending' || a.status === 'scouted') return [{ icon: '⏳', title: `${name} 심사 중`, body: '신청이 검토되고 있어요.', href: '/history' }]
     return []
   })
 
@@ -200,12 +200,14 @@ export default function HomePage() {
             {notis.length === 0 ? (
               <p style={{ padding: '48px 20px', textAlign: 'center', fontSize: 14, color: 'rgba(33,26,51,.5)' }}>아직 알림이 없어요.</p>
             ) : notis.map((n, i) => (
-              <div key={i} style={{ display: 'flex', gap: 12, padding: '14px 20px', borderBottom: '1px solid rgba(33,26,51,.05)' }}>
+              <div key={i} onClick={() => { setShowNoti(false); router.push(n.href) }}
+                style={{ display: 'flex', gap: 12, padding: '14px 20px', borderBottom: '1px solid rgba(33,26,51,.05)', cursor: 'pointer', alignItems: 'center' }}>
                 <span style={{ fontSize: 20 }}>{n.icon}</span>
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 14, fontWeight: 600, color: '#211A33' }}>{n.title}</p>
                   <p style={{ fontSize: 12, color: 'rgba(33,26,51,.55)', marginTop: 2, lineHeight: 1.5 }}>{n.body}</p>
                 </div>
+                <span style={{ color: 'rgba(33,26,51,.3)', fontSize: 18, flexShrink: 0 }}>›</span>
               </div>
             ))}
           </div>
