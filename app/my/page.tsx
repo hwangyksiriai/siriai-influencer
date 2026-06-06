@@ -47,6 +47,7 @@ export default function MyPage() {
   const [tab, setTab] = useState<'profile' | 'settlement'>('profile')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [rrn, setRrn] = useState('')
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -54,6 +55,8 @@ export default function MyPage() {
       const uid = data.session.user.id
       const { data: influencer } = await supabase.from('influencers').select('*').eq('id', uid).single()
       if (influencer) setInf(influencer as Influencer)
+      const { data: sec } = await supabase.from('influencer_secure').select('rrn').eq('influencer_id', uid).limit(1)
+      if (sec && sec[0]) setRrn(sec[0].rrn || '')
       const { data: setts } = await supabase
         .from('settlements')
         .select('*, submissions(applications(campaigns(name)))')
@@ -74,6 +77,7 @@ export default function MyPage() {
       ig_feed_min: inf.ig_feed_min, ig_feed_max: inf.ig_feed_max,
       ig_reels_min: inf.ig_reels_min, ig_reels_max: inf.ig_reels_max,
     }).eq('id', inf.id)
+    await supabase.from('influencer_secure').upsert({ influencer_id: inf.id, rrn }, { onConflict: 'influencer_id' })
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -177,6 +181,11 @@ export default function MyPage() {
                 <div>
                   <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>계좌번호</label>
                   <input style={inp} type="text" placeholder="계좌번호 입력" value={inf.bank_account || ''} onChange={e => set('bank_account', e.target.value)} />
+                </div>
+                <div>
+                  <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(33,26,51,.4)', display: 'block', marginBottom: 5 }}>주민등록번호 (정산 세금 신고용)</label>
+                  <input style={inp} type="text" inputMode="numeric" placeholder="앞 6자리 - 뒤 7자리" value={rrn} onChange={e => setRrn(e.target.value)} />
+                  <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginTop: 5, lineHeight: 1.5 }}>🔒 정산 세금 신고에만 사용하며, 본인과 정산 담당자만 볼 수 있어요.</p>
                 </div>
               </div>
             </div>
