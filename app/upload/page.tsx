@@ -7,7 +7,7 @@ import BottomNav from '@/components/BottomNav'
 
 interface Application {
   id: string
-  campaigns: { name: string; upload_end: string }
+  campaigns: { name: string; upload_end: string; collab_required: boolean }
 }
 
 export default function UploadPage() {
@@ -17,13 +17,15 @@ export default function UploadPage() {
   const [link, setLink] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+  const [confirmTag, setConfirmTag] = useState(false)
+  const [confirmCollab, setConfirmCollab] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.replace('/login'); return }
       const { data: applications } = await supabase
         .from('applications')
-        .select('id, campaigns(name, upload_end)')
+        .select('id, campaigns(name, upload_end, collab_required)')
         .eq('influencer_id', data.session.user.id)
         .eq('status', 'in_progress')
       setApps((applications as unknown as Application[]) || [])
@@ -31,9 +33,12 @@ export default function UploadPage() {
     })
   }, [])
 
+  const collabRequired = !!apps.find(a => a.id === selectedApp)?.campaigns?.collab_required
+  const canSubmit = !!link.trim() && !!selectedApp && confirmTag && (!collabRequired || confirmCollab)
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!link.trim() || !selectedApp) return
+    if (!canSubmit) return
     setSubmitting(true)
     await supabase.from('submissions').insert([{
       application_id: selectedApp,
@@ -57,7 +62,7 @@ export default function UploadPage() {
             <p style={{ fontSize: 40, marginBottom: 16 }}>✅</p>
             <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 8 }}>등록됐어요!</h2>
             <p style={{ fontSize: 14, color: 'rgba(33,26,51,.5)', lineHeight: 1.6, marginBottom: 28 }}>콘텐츠 링크가 등록됐어요.<br/>검수 후 정산이 진행돼요.</p>
-            <button onClick={() => { setDone(false); setLink('') }}
+            <button onClick={() => { setDone(false); setLink(''); setConfirmTag(false); setConfirmCollab(false) }}
               style={{ background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 100, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               다른 콘텐츠 등록하기
             </button>
@@ -95,8 +100,23 @@ export default function UploadPage() {
               </a>
             </div>
 
-            <button type="submit" disabled={!link.trim() || !selectedApp || submitting}
-              style={{ width: '100%', background: link.trim() ? '#211A33' : 'rgba(33,26,51,.2)', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: link.trim() ? 'pointer' : 'default', marginTop: 8, transition: 'background .2s' }}>
+            {/* 업로드 전 확인 (#21) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'rgba(255,255,255,.5)', border: '1px solid rgba(33,26,51,.12)', borderRadius: 12, padding: '14px' }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#211A33' }}>업로드 전 확인</p>
+              <label style={{ display: 'flex', gap: 8, fontSize: 13, color: 'rgba(33,26,51,.75)', cursor: 'pointer', lineHeight: 1.5 }}>
+                <input type="checkbox" checked={confirmTag} onChange={e => setConfirmTag(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, accentColor: '#211A33', flexShrink: 0 }} />
+                게시물에 브랜드 계정을 태그했어요.
+              </label>
+              {collabRequired && (
+                <label style={{ display: 'flex', gap: 8, fontSize: 13, color: 'rgba(33,26,51,.75)', cursor: 'pointer', lineHeight: 1.5 }}>
+                  <input type="checkbox" checked={confirmCollab} onChange={e => setConfirmCollab(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, accentColor: '#211A33', flexShrink: 0 }} />
+                  공동작업자(브랜드 계정)를 추가했어요.
+                </label>
+              )}
+            </div>
+
+            <button type="submit" disabled={!canSubmit || submitting}
+              style={{ width: '100%', background: canSubmit ? '#211A33' : 'rgba(33,26,51,.2)', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: canSubmit ? 'pointer' : 'default', marginTop: 8, transition: 'background .2s' }}>
               {submitting ? '등록 중...' : '다음'}
             </button>
           </form>
