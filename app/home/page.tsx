@@ -82,8 +82,7 @@ export default function HomePage() {
       {/* 헤더 */}
       <div style={{ padding: '20px 20px 0', background: '#F3EEE2', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid rgba(33,26,51,.08)' }}>
         {/* 로고 */}
-        <img src="/siriai-logo.png?v=3" alt="SIRIAI" style={{ height: 30, width: 'auto', display: 'block', marginBottom: 12 }} />
-        <div style={{ borderTop: '1px solid rgba(33,26,51,.12)', marginBottom: 14 }} />
+        <img src="/siriai-logo.png?v=3" alt="SIRIAI" style={{ height: 30, width: 'auto', display: 'block', marginBottom: 16 }} />
 
         {/* 인사 + 알림 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -96,8 +95,10 @@ export default function HomePage() {
           </button>
         </div>
 
+        <div style={{ borderTop: '1px solid rgba(33,26,51,.12)', marginTop: 16 }} />
+
         {/* 캠페인 제목 + 필터 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, paddingBottom: 12 }}>
           <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>캠페인</h1>
           <button onClick={() => setShowFilter(v => !v)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: (showFilter || activeCount) ? '#211A33' : 'rgba(33,26,51,.06)', color: (showFilter || activeCount) ? '#F3EEE2' : '#211A33', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>
