@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 type Pt = { x: number; y: number }
 type P = {
   x: number; y: number; ch: string; font: string; alpha: number
-  seed: number; amp: number; sp: number
+  seed: number; amp: number; sp: number; k: number
   sym: Pt; target: Pt; sc: Pt; ambient: boolean
 }
 
@@ -75,7 +75,7 @@ export default function RootPage() {
       const logoTop = cy - 64
       const logoPts = logoImg ? sampleImg(logoImg, Math.min(W - 70, 290), 110, cx, logoTop, 7) : []
       for (const lp of logoPts.slice(0, 300)) {
-        list.push({ x: 0, y: 0, ch: pick(TINY), font: pick(LOGO_FONTS), alpha: rnd(0.6, 0.95), seed: Math.random() * 9, amp: rnd(0.8, 1.8), sp: rnd(0.6, 1.4), sym: { x: 0, y: 0 }, target: lp, sc: randPt(), ambient: false })
+        list.push({ x: 0, y: 0, ch: pick(TINY), font: pick(LOGO_FONTS), alpha: rnd(0.6, 0.95), seed: Math.random() * 9, amp: rnd(0.8, 1.8), sp: rnd(0.6, 1.4), k: rnd(0.05, 0.2), sym: { x: 0, y: 0 }, target: lp, sc: randPt(), ambient: false })
       }
 
       // 텍스트 줄 — 실제 글자, 잔잔한 흔들림
@@ -90,7 +90,7 @@ export default function RootPage() {
         let x = cx - total / 2
         for (const ch of text) {
           const w = c.measureText(ch).width
-          if (ch.trim()) list.push({ x: 0, y: 0, ch, font, alpha: 1, seed: Math.random() * 9, amp: rnd(0.4, 0.9), sp: rnd(0.5, 1), sym: { x: 0, y: 0 }, target: { x: x + w / 2, y }, sc: randPt(), ambient: false })
+          if (ch.trim()) list.push({ x: 0, y: 0, ch, font, alpha: 1, seed: Math.random() * 9, amp: rnd(0.4, 0.9), sp: rnd(0.5, 1), k: rnd(0.07, 0.18), sym: { x: 0, y: 0 }, target: { x: x + w / 2, y }, sc: randPt(), ambient: false })
           x += w
         }
       }
@@ -101,7 +101,7 @@ export default function RootPage() {
       // 주변 앰비언트 — 항상 은은하게 떠다님 (심볼/로고와 무관)
       for (let i = 0; i < 90; i++) {
         const home = randPt()
-        list.push({ x: home.x, y: home.y, ch: pick(TINY), font: pick(AMBIENT_FONTS), alpha: rnd(0.15, 0.4), seed: Math.random() * 9, amp: rnd(5, 11), sp: rnd(0.3, 0.7), sym: home, target: home, sc: home, ambient: true })
+        list.push({ x: home.x, y: home.y, ch: pick(TINY), font: pick(AMBIENT_FONTS), alpha: rnd(0.15, 0.4), seed: Math.random() * 9, amp: rnd(5, 11), sp: rnd(0.3, 0.7), k: 0.03, sym: home, target: home, sc: home, ambient: true })
       }
 
       particles = list
@@ -119,9 +119,8 @@ export default function RootPage() {
       let curFont = ''
       for (const p of particles) {
         const tg = p.ambient ? p.target : (phase === 'sym' ? p.sym : phase === 'scatter' ? p.sc : p.target)
-        const k = p.ambient ? 0.03 : 0.13
-        p.x += (tg.x - p.x) * k
-        p.y += (tg.y - p.y) * k
+        p.x += (tg.x - p.x) * p.k
+        p.y += (tg.y - p.y) * p.k
         const wx = Math.sin(tw * p.sp + p.seed) * p.amp
         const wy = Math.cos(tw * p.sp * 0.9 + p.seed) * p.amp
         if (p.font !== curFont) { c.font = p.font; curFont = p.font }
