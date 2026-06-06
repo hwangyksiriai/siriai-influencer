@@ -5,9 +5,15 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 type Pt = { x: number; y: number }
-type P = { x: number; y: number; ch: string; font: string; sym: Pt; target: Pt; sc: Pt }
+type P = {
+  x: number; y: number; ch: string; font: string; alpha: number
+  seed: number; amp: number; sp: number
+  sym: Pt; target: Pt; sc: Pt; ambient: boolean
+}
 
-const TINY = 'SIRIAIArchitctureInsightAI·시리あい'.split('')
+const TINY = 'SIRIAIArchitectureInsightAI시리あいしＡＩ·'.split('')
+const LOGO_FONTS = ['300 7px sans-serif', '400 8px sans-serif', '500 9px sans-serif', '700 11px sans-serif', '400 10px "Courier New", monospace', '300 12px sans-serif']
+const AMBIENT_FONTS = ['300 6px sans-serif', '300 8px sans-serif', '400 7px sans-serif', '500 9px sans-serif']
 
 export default function RootPage() {
   const router = useRouter()
@@ -29,17 +35,17 @@ export default function RootPage() {
     canvas.style.width = W + 'px'; canvas.style.height = H + 'px'
     c.scale(DPR, DPR)
     const cx = W / 2, cy = H / 2
+    const rnd = (a: number, b: number) => a + Math.random() * (b - a)
+    const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]
 
     let particles: P[] = []
     let raf = 0, start = 0, redirected = false
 
-    function circle(cxx: number, cyy: number, rad: number): Pt[] {
+    function circle(rad: number): Pt[] {
       const pts: Pt[] = []
-      for (let a = 0; a < Math.PI * 2; a += 0.1) for (let rr = rad * 0.45; rr <= rad; rr += 5) pts.push({ x: cxx + Math.cos(a) * rr, y: cyy + Math.sin(a) * rr })
+      for (let a = 0; a < Math.PI * 2; a += 0.14) for (let rr = rad * 0.45; rr <= rad; rr += 7) pts.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr })
       return pts
     }
-
-    // 이미지의 밝은(흰) 픽셀을 점 좌표로
     function sampleImg(img: HTMLImageElement, boxW: number, boxH: number, ccx: number, ccy: number, step: number): Pt[] {
       try {
         const ratio = img.width / img.height
@@ -58,29 +64,25 @@ export default function RootPage() {
         return pts
       } catch { return [] }
     }
-
-    function rand(): Pt { return { x: Math.random() * W, y: Math.random() * H } }
+    const randPt = (): Pt => ({ x: Math.random() * W, y: Math.random() * H })
 
     function build(symImg: HTMLImageElement | null, logoImg: HTMLImageElement | null) {
-      // 심볼 점 (시작 모양)
-      const symPts = symImg ? sampleImg(symImg, Math.min(W, H) * 0.4, Math.min(W, H) * 0.4, cx, cy, 4) : []
-      const sym = symPts.length ? symPts : circle(cx, cy, Math.min(W, H) * 0.2)
-
+      const symPts = symImg ? sampleImg(symImg, Math.min(W, H) * 0.4, Math.min(W, H) * 0.4, cx, cy, 6) : circle(Math.min(W, H) * 0.2)
+      const sym = symPts.length ? symPts : circle(Math.min(W, H) * 0.2)
       const list: P[] = []
 
-      // 로고(워드마크) 점 — 작은 글씨로 모양 형성, 상단
-      const logoTop = cy - 70
-      const logoPts = logoImg ? sampleImg(logoImg, Math.min(W - 70, 300), 120, cx, logoTop, 4) : []
-      const logoCapped = logoPts.slice(0, 560)
-      for (const lp of logoCapped) {
-        list.push({ x: 0, y: 0, ch: TINY[Math.floor(Math.random() * TINY.length)], font: "9px 'Courier New', monospace", sym: { x: 0, y: 0 }, target: lp, sc: rand() })
+      // 로고(워드마크) — 작은 글씨, 다양한 크기/굵기, 덜 빼곡하게
+      const logoTop = cy - 64
+      const logoPts = logoImg ? sampleImg(logoImg, Math.min(W - 70, 290), 110, cx, logoTop, 7) : []
+      for (const lp of logoPts.slice(0, 300)) {
+        list.push({ x: 0, y: 0, ch: pick(TINY), font: pick(LOGO_FONTS), alpha: rnd(0.6, 0.95), seed: Math.random() * 9, amp: rnd(0.8, 1.8), sp: rnd(0.6, 1.4), sym: { x: 0, y: 0 }, target: lp, sc: randPt(), ambient: false })
       }
 
-      // 텍스트 줄 — 실제 글자가 제자리로
+      // 텍스트 줄 — 실제 글자, 잔잔한 흔들림
       const lines: [string, string, number][] = [
-        ['시리아이', '600 19px sans-serif', cy + 28],
-        ['しりあい', '400 16px sans-serif', cy + 56],
-        ['Architecture for Insight, AI', '600 13px sans-serif', cy + 86],
+        ['시리아이', '600 19px sans-serif', cy + 30],
+        ['しりあい', '400 16px sans-serif', cy + 58],
+        ['Architecture for Insight, AI', '600 13px sans-serif', cy + 88],
       ]
       for (const [text, font, y] of lines) {
         c.font = font
@@ -88,13 +90,20 @@ export default function RootPage() {
         let x = cx - total / 2
         for (const ch of text) {
           const w = c.measureText(ch).width
-          if (ch.trim()) list.push({ x: 0, y: 0, ch, font, sym: { x: 0, y: 0 }, target: { x: x + w / 2, y }, sc: rand() })
+          if (ch.trim()) list.push({ x: 0, y: 0, ch, font, alpha: 1, seed: Math.random() * 9, amp: rnd(0.4, 0.9), sp: rnd(0.5, 1), sym: { x: 0, y: 0 }, target: { x: x + w / 2, y }, sc: randPt(), ambient: false })
           x += w
         }
       }
 
-      // 시작 위치 = 심볼 모양 (처음부터 모여 있음)
+      // 시작 위치 = 심볼 모양
       list.forEach((p, i) => { p.sym = sym[i % sym.length]; p.x = p.sym.x; p.y = p.sym.y })
+
+      // 주변 앰비언트 — 항상 은은하게 떠다님 (심볼/로고와 무관)
+      for (let i = 0; i < 90; i++) {
+        const home = randPt()
+        list.push({ x: home.x, y: home.y, ch: pick(TINY), font: pick(AMBIENT_FONTS), alpha: rnd(0.15, 0.4), seed: Math.random() * 9, amp: rnd(5, 11), sp: rnd(0.3, 0.7), sym: home, target: home, sc: home, ambient: true })
+      }
+
       particles = list
       start = performance.now()
       raf = requestAnimationFrame(loop)
@@ -102,21 +111,26 @@ export default function RootPage() {
 
     function loop(now: number) {
       const t = (now - start) / 1000
+      const tw = now / 1000
       c.clearRect(0, 0, W, H)
-      c.fillStyle = '#fff'
       c.textAlign = 'center'; c.textBaseline = 'middle'
-      // 0~1.6: 심볼 / 1.6~2.7: 흩어짐 / 2.7~: 로고+텍스트
-      const phase = t < 1.6 ? 'sym' : t < 2.7 ? 'scatter' : 'final'
+      const phase = t < 1.7 ? 'sym' : t < 2.7 ? 'scatter' : 'final'
+      const bob = phase === 'final' ? Math.sin(tw * 0.5) * 3 : 0  // 로고 전체가 잔잔히 떠다님
       let curFont = ''
       for (const p of particles) {
-        const tg = phase === 'sym' ? p.sym : phase === 'scatter' ? p.sc : p.target
-        p.x += (tg.x - p.x) * 0.13
-        p.y += (tg.y - p.y) * 0.13
-        const f = phase === 'final' ? p.font : "9px 'Courier New', monospace"
-        if (f !== curFont) { c.font = f; curFont = f }
-        c.fillText(p.ch, p.x, p.y)
+        const tg = p.ambient ? p.target : (phase === 'sym' ? p.sym : phase === 'scatter' ? p.sc : p.target)
+        const k = p.ambient ? 0.03 : 0.13
+        p.x += (tg.x - p.x) * k
+        p.y += (tg.y - p.y) * k
+        const wx = Math.sin(tw * p.sp + p.seed) * p.amp
+        const wy = Math.cos(tw * p.sp * 0.9 + p.seed) * p.amp
+        if (p.font !== curFont) { c.font = p.font; curFont = p.font }
+        c.globalAlpha = p.alpha
+        c.fillStyle = '#fff'
+        c.fillText(p.ch, p.x + wx, p.y + wy + (p.ambient ? 0 : bob))
       }
-      if (t < 5.8) raf = requestAnimationFrame(loop)
+      c.globalAlpha = 1
+      if (t < 6) raf = requestAnimationFrame(loop)
       else if (!redirected) { redirected = true; check.then(() => router.replace(dest)) }
     }
 
