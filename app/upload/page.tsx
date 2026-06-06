@@ -26,7 +26,7 @@ export default function UploadPage() {
         .select('id, campaigns(name, upload_end)')
         .eq('influencer_id', data.session.user.id)
         .eq('status', 'in_progress')
-      setApps((applications as Application[]) || [])
+      setApps((applications as unknown as Application[]) || [])
       if (applications?.length) setSelectedApp(applications[0].id)
     })
   }, [])
