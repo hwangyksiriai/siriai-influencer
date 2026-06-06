@@ -38,6 +38,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [catFilter, setCatFilter] = useState('전체')
   const [typeFilter, setTypeFilter] = useState('전체')
+  const [showFilter, setShowFilter] = useState(false)
   const [userName, setUserName] = useState('')
 
   useEffect(() => {
@@ -74,6 +75,8 @@ export default function HomePage() {
     return matchCat && matchType
   })
 
+  const activeCount = (catFilter !== '전체' ? 1 : 0) + (typeFilter !== '전체' ? 1 : 0)
+
   return (
     <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 80 }}>
       {/* 헤더 */}
@@ -83,26 +86,34 @@ export default function HomePage() {
             <p style={{ fontSize: 12, color: 'rgba(33,26,51,.5)', marginBottom: 2 }}>{userName}님</p>
             <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>캠페인</h1>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={() => setShowFilter(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, position: 'relative' }}>
+              <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+              {activeCount > 0 && <span style={{ position: 'absolute', top: 2, right: 2, background: '#e65100', color: '#fff', borderRadius: 100, fontSize: 9, fontWeight: 700, minWidth: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{activeCount}</span>}
+            </button>
             <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6 }}>
               <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             </button>
           </div>
         </div>
 
-        {/* 필터: 카테고리 + 콘텐츠 타입 */}
-        <div style={{ paddingBottom: 12 }}>
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 6 }}>
-            {CATEGORY_FILTERS.map(f => (
-              <button key={f} onClick={() => setCatFilter(f)} style={chip(catFilter === f)}>{f}</button>
-            ))}
+        {/* 필터 패널 (아이콘 클릭 시) */}
+        {showFilter && (
+          <div style={{ paddingBottom: 12 }}>
+            <p style={{ fontSize: 11, color: 'rgba(33,26,51,.45)', fontWeight: 600, marginBottom: 6 }}>카테고리</p>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 10 }}>
+              {CATEGORY_FILTERS.map(f => (
+                <button key={f} onClick={() => setCatFilter(f)} style={chip(catFilter === f)}>{f}</button>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: 'rgba(33,26,51,.45)', fontWeight: 600, marginBottom: 6 }}>콘텐츠 타입</p>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>
+              {TYPE_FILTERS.map(f => (
+                <button key={f} onClick={() => setTypeFilter(f)} style={chip(typeFilter === f)}>{f}</button>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>
-            {TYPE_FILTERS.map(f => (
-              <button key={f} onClick={() => setTypeFilter(f)} style={chip(typeFilter === f)}>{f}</button>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* 캠페인 목록 */}
