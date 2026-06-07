@@ -54,6 +54,7 @@ export default function CampaignDetailPage() {
   const [address, setAddress] = useState('')
   const [addressDetail, setAddressDetail] = useState('')
   const [request, setRequest] = useState('')
+  const [costAgree, setCostAgree] = useState(false)
   const [userId, setUserId] = useState('')
   const [alreadyApplied, setAlreadyApplied] = useState(false)
   const [applySuccess, setApplySuccess] = useState(false)
@@ -93,6 +94,7 @@ export default function CampaignDetailPage() {
       campaign_id: id,
       influencer_id: userId,
       address, address_detail: addressDetail, request,
+      cost_agreement: costAgree,
       status: 'pending',
     }])
     // 프로필 주소 자동 갱신 (가장 최근 신청 주소로)
@@ -321,9 +323,18 @@ export default function CampaignDetailPage() {
               <div style={{ background: '#fff5f5', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: '#e03', lineHeight: 1.5 }}>
                 ⚠️ 배송지는 매 캠페인마다 새로 확인합니다. 정확히 입력해 주세요.
               </div>
-              <button onClick={handleApply} disabled={applying || !address.trim()}
-                style={{ width: '100%', background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: applying ? .6 : 1 }}>
-                {applying ? '신청 중...' : '신청 완료'}
+              <div style={{ background: 'rgba(33,26,51,.04)', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: 'rgba(33,26,51,.7)', lineHeight: 1.6 }}>
+                📌 <b>업로드·정산 안내</b><br />
+                · {campaign?.upload_end ? `업로드 마감(${new Date(campaign.upload_end).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})` : '안내된 업로드 마감일'}까지 미업로드 시 <b>정산이 불가</b>합니다.<br />
+                · 정산은 <b>매월 5일</b> 일괄 지급됩니다.
+              </div>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: '#211A33', lineHeight: 1.5, cursor: 'pointer', padding: '4px 2px' }}>
+                <input type="checkbox" checked={costAgree} onChange={e => setCostAgree(e.target.checked)} style={{ width: 18, height: 18, accentColor: '#211A33', flexShrink: 0, marginTop: 1 }} />
+                <span>선정 후 <b>미업로드 시 제공받은 제품의 원가를 청구</b>받는 데 동의합니다. <span style={{ color: '#e03' }}>(필수)</span></span>
+              </label>
+              <button onClick={handleApply} disabled={applying || !address.trim() || !costAgree}
+                style={{ width: '100%', background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: (applying || !costAgree) ? .5 : 1 }}>
+                {applying ? '신청 중...' : !costAgree ? '동의 후 신청 가능' : '신청 완료'}
               </button>
             </div>
           </div>
