@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 
@@ -17,6 +18,9 @@ interface Influencer {
   bank_account: string
   account_holder: string
   avatar_url: string
+  status: string
+  notify_kakao: boolean
+  notify_push: boolean
   ig_feed_min: number
   ig_feed_max: number
   ig_reels_min: number
@@ -53,7 +57,7 @@ export default function MyPage() {
   const router = useRouter()
   const [inf, setInf] = useState<Influencer | null>(null)
   const [settlements, setSettlements] = useState<Settlement[]>([])
-  const [tab, setTab] = useState<'profile' | 'settlement'>('profile')
+  const [tab, setTab] = useState<'profile' | 'settlement' | 'settings'>('profile')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [rrn, setRrn] = useState('')
@@ -113,6 +117,20 @@ export default function MyPage() {
     router.replace('/login')
   }
 
+  async function toggleNotify(key: 'notify_kakao' | 'notify_push', val: boolean) {
+    if (!inf) return
+    set(key, val)
+    await supabase.from('influencers').update({ [key]: val }).eq('id', inf.id)
+  }
+
+  async function handleWithdraw() {
+    if (!inf) return
+    if (!confirm('정말 탈퇴하시겠어요? 진행 중인 캠페인이나 미지급 정산이 있으면 먼저 처리해 주세요.')) return
+    await supabase.from('influencers').update({ status: 'withdrawn' }).eq('id', inf.id)
+    await supabase.auth.signOut()
+    router.replace('/login')
+  }
+
   const totalPending = settlements.filter(s => s.status === 'pending').reduce((sum, s) => sum + (s.amount || 0), 0)
   const totalPaid = settlements.filter(s => s.status === 'paid').reduce((sum, s) => sum + (s.amount || 0), 0)
 
@@ -163,7 +181,7 @@ export default function MyPage() {
 
         {/* 탭 */}
         <div style={{ display: 'flex', gap: 0 }}>
-          {[['profile', '프로필 편집'], ['settlement', '정산 내역']] .map(([k, l]) => (
+          {[['profile', '프로필 편집'], ['settlement', '정산 내역'], ['settings', '설정']].map(([k, l]) => (
             <button key={k} onClick={() => setTab(k as any)}
               style={{ background: 'none', border: 'none', borderBottom: tab === k ? '2px solid #211A33' : '2px solid transparent', padding: '8px 14px', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? '#211A33' : 'rgba(33,26,51,.4)', cursor: 'pointer', marginBottom: -1 }}>
               {l}
@@ -315,6 +333,58 @@ export default function MyPage() {
                 </div>
               ))
             )}
+          </div>
+        )}
+
+        {tab === 'settings' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {/* 메뉴 */}
+            <div style={secCard}>
+              {[
+                ['/support?tab=notice', '📢 공지사항'],
+                ['/support?tab=faq', '❓ 자주 묻는 질문'],
+                ['/support?tab=inquiry', '✉️ 1:1 문의'],
+                ['/support?tab=guide', '📖 이용 가이드'],
+              ].map(([href, label], i) => (
+                <Link key={href} href={href} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 16px', textDecoration: 'none', color: '#211A33', borderTop: i ? '1px solid rgba(33,26,51,.07)' : 'none', fontSize: 14 }}>
+                  <span>{label}</span><span style={{ color: 'rgba(33,26,51,.3)', fontSize: 18 }}>›</span>
+                </Link>
+              ))}
+            </div>
+
+            {/* 계정 정보 */}
+            <div>
+              <p style={microLbl}>계정 정보</p>
+              <div style={{ ...secCard, padding: '10px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0' }}><span style={{ color: 'rgba(33,26,51,.5)' }}>이메일</span><span style={{ color: '#211A33' }}>{inf.email || '-'}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderTop: '1px solid rgba(33,26,51,.06)' }}><span style={{ color: 'rgba(33,26,51,.5)' }}>회원 상태</span><span style={{ color: '#211A33' }}>{({ pending: '승인대기', approved: '승인됨', rejected: '반려', withdrawn: '탈퇴' } as Record<string, string>)[inf.status] || '승인됨'}</span></div>
+              </div>
+            </div>
+
+            {/* 알림 설정 */}
+            <div>
+              <p style={microLbl}>알림 설정</p>
+              <div style={{ ...secCard, padding: '4px 16px' }}>
+                {([['notify_kakao', '카카오 알림톡'], ['notify_push', '앱 푸시 알림']] as const).map(([k, l], i) => {
+                  const on = (inf as any)[k] !== false
+                  return (
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 0', borderTop: i ? '1px solid rgba(33,26,51,.06)' : 'none' }}>
+                      <span style={{ fontSize: 14, color: '#211A33' }}>{l}</span>
+                      <button onClick={() => toggleNotify(k, !on)} style={{ width: 44, height: 26, borderRadius: 100, border: 'none', cursor: 'pointer', background: on ? '#211A33' : 'rgba(33,26,51,.2)', position: 'relative', transition: 'background .2s' }}>
+                        <span style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginTop: 6, lineHeight: 1.5 }}>선정·업로드·정산 안내를 받아요. (카카오 알림톡 연동 준비 중)</p>
+            </div>
+
+            {/* 로그아웃 / 탈퇴 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+              <button onClick={handleLogout} style={{ width: '100%', background: 'rgba(255,255,255,.6)', color: '#211A33', border: '1px solid rgba(33,26,51,.18)', borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>로그아웃</button>
+              <button onClick={handleWithdraw} style={{ width: '100%', background: 'none', color: 'rgba(33,26,51,.4)', border: 'none', padding: '8px', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>회원 탈퇴</button>
+            </div>
           </div>
         )}
       </main>
