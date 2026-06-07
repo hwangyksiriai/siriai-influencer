@@ -68,7 +68,10 @@ export default function MyPage() {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.replace('/login'); return }
       const uid = data.session.user.id
-      const { data: influencer } = await supabase.from('influencers').select('*').eq('id', uid).single()
+      // 관리자 전용 항목(admin_memo·blacklisted 등)은 가져오지 않음
+      const { data: influencer } = await supabase.from('influencers')
+        .select('id, name, handle, followers, category, email, phone, bank_name, bank_account, account_holder, avatar_url, status, notify_kakao, notify_push, ig_feed_min, ig_feed_max, ig_reels_min, ig_reels_max, yt_shorts_min, yt_shorts_max, yt_video_min, yt_video_max')
+        .eq('id', uid).single()
       if (influencer) setInf(influencer as Influencer)
       const { data: sec } = await supabase.from('influencer_secure').select('rrn').eq('influencer_id', uid).limit(1)
       if (sec && sec[0]) setRrn(sec[0].rrn || '')
