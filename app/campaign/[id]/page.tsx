@@ -95,6 +95,9 @@ export default function CampaignDetailPage() {
       address, address_detail: addressDetail, request,
       status: 'pending',
     }])
+    // 프로필 주소 자동 갱신 (가장 최근 신청 주소로)
+    const fullAddr = `${address}${addressDetail ? ' ' + addressDetail : ''}`.trim()
+    if (fullAddr) await supabase.from('influencers').update({ address: fullAddr }).eq('id', userId)
     setApplying(false)
     setShowApply(false)
     setAlreadyApplied(true)
