@@ -110,8 +110,11 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 종 (단독, 오른쪽) */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 2 }}>
+        {/* 메시지 + 종 (오른쪽) */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+          <Link href="/messages" aria-label="메시지" style={{ padding: 6, display: 'flex' }}>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          </Link>
           <button onClick={() => setShowNoti(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, position: 'relative' }}>
             <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             {notis.length > 0 && <span style={{ position: 'absolute', top: 2, right: 2, background: '#e65100', color: '#fff', borderRadius: 100, fontSize: 9, fontWeight: 700, minWidth: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{notis.length}</span>}

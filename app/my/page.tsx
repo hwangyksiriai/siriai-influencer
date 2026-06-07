@@ -341,6 +341,7 @@ export default function MyPage() {
             {/* 메뉴 */}
             <div style={secCard}>
               {[
+                ['/messages', '💬 메시지 (담당자 1:1)'],
                 ['/support?tab=notice', '📢 공지사항'],
                 ['/support?tab=faq', '❓ 자주 묻는 질문'],
                 ['/support?tab=inquiry', '✉️ 1:1 문의'],
