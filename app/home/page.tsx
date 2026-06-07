@@ -13,7 +13,7 @@ interface Campaign {
   fee_amount: number
   product_value: number
   image_url: string
-  category: string
+  category: string[] | string
   content_type: string
   upload_start: string
   upload_end: string
@@ -25,7 +25,7 @@ interface Campaign {
 interface AppRow { id: string; status: string; campaigns: { name: string; upload_start: string; upload_end: string } | null }
 interface Noti { icon: string; title: string; body: string; href: string }
 
-const CATEGORY_FILTERS = ['전체', '뷰티', '패션', '라이프']
+const CATEGORY_FILTERS = ['전체', '색조', '스킨케어', '패션', '라이프', '육아', '피트니스']
 const TYPE_FILTERS = ['전체', '릴스', '피드']
 const chip = (active: boolean): React.CSSProperties => ({
   borderRadius: 99, padding: '6px 14px', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap',
@@ -90,7 +90,7 @@ export default function HomePage() {
   }
 
   const filtered = campaigns.filter(c => {
-    const matchCat = catFilter === '전체' || c.category === catFilter
+    const matchCat = catFilter === '전체' || (Array.isArray(c.category) ? c.category.includes(catFilter) : c.category === catFilter)
     const matchType = typeFilter === '전체' || c.content_type?.includes(typeFilter)
     return matchCat && matchType
   })

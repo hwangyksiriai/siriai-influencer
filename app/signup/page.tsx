@@ -19,8 +19,7 @@ const chip = (active: boolean): React.CSSProperties => ({
   background: active ? '#211A33' : 'transparent', color: active ? '#F3EEE2' : '#211A33',
 })
 
-const CATEGORIES = ['뷰티', '패션', '라이프', '푸드', '여행', '육아', '피트니스']
-const BEAUTY_SUBS = ['색조', '스킨케어', '헤어', '바디', '향수', '네일']
+const CATEGORIES = ['색조', '스킨케어', '패션', '라이프', '육아', '피트니스']
 const GENDERS = ['여성', '남성']
 const REGIONS = ['서울', '경기', '인천', '부산', '대구', '대전', '광주', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
 
@@ -31,18 +30,10 @@ export default function SignupPage() {
   const [showPw, setShowPw] = useState(false)
   const [done, setDone] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
-  const [form, setForm] = useState({ email: '', password: '', name: '', handle: '', gender: '', region: '' })
+  const [form, setForm] = useState({ email: '', password: '', name: '', handle: '', gender: '', region: '', youtube_url: '', blog_url: '', tiktok_url: '' })
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
-  const toggleCat = (c: string) => setCategories(p =>
-    p.includes(c)
-      ? p.filter(x => x !== c && !(c === '뷰티' && x.startsWith('뷰티/')))  // 뷰티 끄면 하위도 제거
-      : [...p, c]
-  )
-  const toggleSub = (sub: string) => {
-    const full = '뷰티/' + sub
-    setCategories(p => p.includes(full) ? p.filter(x => x !== full) : [...p, full])
-  }
+  const toggleCat = (c: string) => setCategories(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c])
   // 비밀번호: 영문 + 숫자 포함 8자 이상
   const pwValid = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(form.password)
 
@@ -71,6 +62,9 @@ export default function SignupPage() {
         gender: form.gender || null,
         region: form.region || null,
         category: categories,
+        youtube_url: form.youtube_url || null,
+        blog_url: form.blog_url || null,
+        tiktok_url: form.tiktok_url || null,
         status: 'pending',
       }])
       if (insErr) { setError('프로필 저장 실패: ' + insErr.message); setLoading(false); return }
@@ -189,17 +183,14 @@ export default function SignupPage() {
                   <button key={c} type="button" onClick={() => toggleCat(c)} style={chip(categories.includes(c))}>{c}</button>
                 ))}
               </div>
-              {/* #25 뷰티 선택 시 세부 분야 노출 */}
-              {categories.includes('뷰티') && (
-                <div style={{ marginTop: 10, padding: '12px 14px', background: 'rgba(221,208,239,.3)', borderRadius: 12 }}>
-                  <p style={{ fontSize: 11, color: 'rgba(33,26,51,.55)', marginBottom: 8 }}>뷰티 세부 분야 (복수 선택)</p>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {BEAUTY_SUBS.map(s => (
-                      <button key={s} type="button" onClick={() => toggleSub(s)} style={chip(categories.includes('뷰티/' + s))}>{s}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            </div>
+            <div>
+              <label style={lbl}>SNS 링크 (선택)</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input style={inp} type="url" placeholder="유튜브 채널 링크" value={form.youtube_url} onChange={e => set('youtube_url', e.target.value)} />
+                <input style={inp} type="url" placeholder="블로그 링크" value={form.blog_url} onChange={e => set('blog_url', e.target.value)} />
+                <input style={inp} type="url" placeholder="틱톡 링크" value={form.tiktok_url} onChange={e => set('tiktok_url', e.target.value)} />
+              </div>
             </div>
             {error && <p style={{ fontSize: 12, color: '#e03', margin: 0 }}>{error}</p>}
             <button type="submit" disabled={loading}
