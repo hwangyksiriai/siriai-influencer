@@ -7,6 +7,7 @@ import BottomNav from '@/components/BottomNav'
 
 interface Application {
   id: string
+  upload_end_override: string | null
   campaigns: { name: string; upload_end: string; collab_required: boolean }
 }
 
@@ -52,7 +53,7 @@ export default function UploadPage() {
       setUid(userId)
       const { data: applications } = await supabase
         .from('applications')
-        .select('id, campaigns(name, upload_end, collab_required)')
+        .select('id, upload_end_override, campaigns(name, upload_end, collab_required)')
         .eq('influencer_id', userId)
         .eq('status', 'in_progress')
       setApps((applications as unknown as Application[]) || [])
@@ -63,13 +64,14 @@ export default function UploadPage() {
 
   const selected = apps.find(a => a.id === selectedApp)
   const collabRequired = !!selected?.campaigns?.collab_required
-  const uploadEnd = selected?.campaigns?.upload_end || ''
+  // #18 개별 연장 마감일이 있으면 우선 적용
+  const uploadEnd = selected?.upload_end_override || selected?.campaigns?.upload_end || ''
   // #17 업로드 마감일이 지나면 업로드 불가
   const expired = !!uploadEnd && todayStr() > uploadEnd
   const canSubmit = !expired && !!link.trim() && !!selectedApp && confirmTag && (!collabRequired || confirmCollab)
 
   function isExpired(a: Application) {
-    const e = a.campaigns?.upload_end
+    const e = a.upload_end_override || a.campaigns?.upload_end
     return !!e && todayStr() > e
   }
 
