@@ -68,7 +68,7 @@ export default function CampaignDetailPage() {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.replace('/login'); return }
       setUserId(data.session.user.id)
-      const { data: app } = await supabase.from('applications').select('id').eq('campaign_id', id).eq('influencer_id', data.session.user.id).single()
+      const { data: app } = await supabase.from('applications').select('id').eq('campaign_id', id).eq('influencer_id', data.session.user.id).maybeSingle()
       if (app) setAlreadyApplied(true)
     })
   }, [id])
