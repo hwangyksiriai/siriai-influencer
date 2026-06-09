@@ -100,6 +100,7 @@ export default function CampaignDetailPage() {
       influencer_id: userId,
       address, address_detail: addressDetail, request,
       cost_agreement: costAgree,
+      proposed_fee: campaign.fee_amount || null,
       status: 'pending',
     }])
     const fullAddr = `${address}${addressDetail ? ' ' + addressDetail : ''}`.trim()
