@@ -12,18 +12,23 @@ interface Thread { cid: string; camp: string; brand: string; last: string; lastA
 
 export default function InfMessagesPage() {
   const router = useRouter()
+  const [uid, setUid] = useState('')
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(true)
 
+  // 스레드 목록 최초 로드
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.replace('/login'); return }
-      const uid = data.session.user.id
+      const u = data.session.user.id
+      setUid(u)
+
       const { data: msgs } = await supabase
         .from('messages')
         .select('id, campaign_id, sender, body, created_at, campaigns(name, brands(name))')
-        .eq('influencer_id', uid)
+        .eq('influencer_id', u)
         .order('created_at', { ascending: false })
+
       const map = new Map<string, Thread>()
       for (const m of (msgs as unknown as Msg[]) || []) {
         if (!map.has(m.campaign_id)) map.set(m.campaign_id, { cid: m.campaign_id, camp: m.campaigns?.name || '캠페인', brand: m.campaigns?.brands?.name || '', last: m.body, lastAt: m.created_at, lastSender: m.sender })
@@ -32,6 +37,59 @@ export default function InfMessagesPage() {
       setLoading(false)
     })
   }, [])
+
+  // Realtime — 새 메시지 오면 스레드 목록 자동 갱신
+  useEffect(() => {
+    if (!uid) return
+
+    const channel = supabase
+      .channel(`threads-${uid}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `influencer_id=eq.${uid}` },
+        async (payload) => {
+          const m = payload.new as any
+          // 캠페인 이름은 이미 threads에 있을 수 있으므로 기존 정보 재활용 or fetch
+          let campName = ''
+          let brandName = ''
+          setThreads(prev => {
+            const existing = prev.find(t => t.cid === m.campaign_id)
+            campName = existing?.camp || ''
+            brandName = existing?.brand || ''
+            return prev
+          })
+
+          // 캠페인 정보가 없으면 새로 fetch
+          if (!campName) {
+            const { data: cm } = await supabase.from('campaigns').select('name, brands(name)').eq('id', m.campaign_id).single()
+            campName = (cm as any)?.name || '캠페인'
+            brandName = (cm as any)?.brands?.name || ''
+          }
+
+          const updated: Thread = {
+            cid: m.campaign_id,
+            camp: campName,
+            brand: brandName,
+            last: m.body,
+            lastAt: m.created_at,
+            lastSender: m.sender,
+          }
+
+          setThreads(prev => {
+            const idx = prev.findIndex(t => t.cid === m.campaign_id)
+            if (idx >= 0) {
+              const next = [...prev]
+              next[idx] = updated
+              return next
+            }
+            return [updated, ...prev]
+          })
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [uid])
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120 }}>

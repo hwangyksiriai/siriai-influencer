@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { T } from '@/lib/theme'
 
-interface Msg { id: string; sender: string; body: string; created_at: string }
+interface Msg { id: string; sender: string; body: string; created_at: string; influencer_id?: string }
 
 export default function MessageThreadPage() {
   const { id } = useParams<{ id: string }>() // campaign_id
@@ -18,15 +18,42 @@ export default function MessageThreadPage() {
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.replace('/login'); return }
       const u = data.session.user.id
       setUid(u)
+
       supabase.from('campaigns').select('name, brands(name)').eq('id', id).single().then(({ data: cm }: any) => {
         if (cm) setTitle(cm.name || '메시지')
       })
-      load(u)
+
+      await load(u)
+
+      // Realtime — 이 스레드(campaign_id + influencer_id)에 새 메시지 INSERT 감지
+      channel = supabase
+        .channel(`msg-thread-${id}-${u}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages', filter: `campaign_id=eq.${id}` },
+          (payload) => {
+            const m = payload.new as Msg
+            // 이 인플루언서의 스레드 메시지만 처리
+            if (m.influencer_id && m.influencer_id !== u) return
+            setMsgs(prev => {
+              if (prev.find(x => x.id === m.id)) return prev // 중복 방지
+              return [...prev, m]
+            })
+            setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+          }
+        )
+        .subscribe()
     })
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [id])
 
   async function load(u: string) {
@@ -41,6 +68,7 @@ export default function MessageThreadPage() {
     setText(''); setSending(true)
     await supabase.from('messages').insert([{ campaign_id: id, influencer_id: uid, sender: 'influencer', body }])
     setSending(false)
+    // Realtime이 자동 수신하지만 자신이 보낸 메시지는 직접 추가
     load(uid)
   }
 
