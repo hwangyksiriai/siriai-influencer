@@ -96,13 +96,19 @@ export default function HomePage() {
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, color: T.ink }}>
       <div style={{ maxWidth: 480, margin: '0 auto', paddingTop: 'max(20px, env(safe-area-inset-top))', paddingBottom: 120, display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* 헤더 */}
-        <div style={{ padding: `0 ${T.pad}px`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 30, letterSpacing: '-0.02em', color: T.ink }}>Curation</h1>
+        <div style={{ padding: `0 ${T.pad}px`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* 로고 + 아이콘 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <img src="/siriai-logo.png?v=3" alt="SIRIAI" style={{ height: 26, width: 'auto', display: 'block' }} />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <IconBtn icon={Ico.bell} badge={notis.length > 0} ariaLabel="알림" onClick={() => setShowNoti(true)} />
+              <IconBtn icon={Ico.chat} ariaLabel="메시지" onClick={() => router.push('/messages')} />
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <IconBtn icon={Ico.bell} badge={notis.length > 0} ariaLabel="알림" onClick={() => setShowNoti(true)} />
-            <IconBtn icon={Ico.chat} ariaLabel="메시지" onClick={() => router.push('/messages')} />
+          {/* 인사 + 태그라인 */}
+          <div>
+            <h1 style={{ margin: 0, fontFamily: T.fontUI, fontWeight: 800, fontSize: 24, letterSpacing: '-0.03em', color: T.ink }}>{userName || '게스트'}님</h1>
+            <p style={{ margin: '4px 0 0', fontFamily: T.fontUI, fontSize: 13, color: T.ink3 }}>사람과 브랜드를 잇는 특별한 연결</p>
           </div>
         </div>
 
