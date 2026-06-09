@@ -51,7 +51,12 @@ export function catKey(category?: string | string[] | null): string {
 
 export const won = (n?: number | null) => (n ?? 0).toLocaleString('ko-KR')
 
-// 캠페인 이미지가 없을 때 캠페인 id 기반의 고정 임의 사진으로 폴백합니다.
-// (같은 캠페인은 항상 같은 사진 — 실제 image_url이 있으면 그걸 우선)
+// 캠페인 이미지가 없을 때 뷰티 관련 사진으로 폴백합니다.
+// 캠페인 id로 seed를 고정해 같은 캠페인은 항상 같은 사진 (실제 image_url이 있으면 그걸 우선)
+function imgSeed(id?: string): number {
+  let h = 0
+  for (const ch of id || 'x') h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return h % 1000
+}
 export const campaignImg = (id?: string, url?: string | null) =>
-  url || `https://picsum.photos/seed/siriai-${id || 'x'}/800/600`
+  url || `https://loremflickr.com/800/600/beauty,cosmetics,skincare,makeup?lock=${imgSeed(id)}`

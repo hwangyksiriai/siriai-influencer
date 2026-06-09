@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
-import { Ico, Pill, Card, Monogram, IconBtn, PhotoBlock } from '@/components/ui'
+import { Ico, Pill, IconBtn, PhotoBlock } from '@/components/ui'
 import { T, CAT, catKey, won, campaignImg } from '@/lib/theme'
 
 interface Campaign {
@@ -142,6 +142,7 @@ export default function HomePage() {
               <div>
                 <div style={{ padding: `0 ${T.pad}px`, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
                   <h3 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 19, color: T.ink, letterSpacing: '-0.02em' }}>For You</h3>
+                  <button onClick={() => router.push('/campaigns')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: T.fontUI, fontSize: 12.5, color: T.ink3, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}>전체보기 <Ico.chevR width="13" height="13" /></button>
                 </div>
                 <div style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: `0 ${T.pad}px`, scrollbarWidth: 'none' }}>
                   {rail.map((c) => (
@@ -160,25 +161,30 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* 컴팩트 리스트 */}
+            {/* 컴팩트 슬라이드 */}
             {list.length > 0 && (
-              <div style={{ padding: `0 ${T.pad}px` }}>
-                <h3 style={{ margin: '0 0 12px', fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 19, color: T.ink, letterSpacing: '-0.02em' }}>Just In</h3>
-                <Card pad={false}>
-                  {list.map((c, i, arr) => (
-                    <div key={c.id} onClick={() => open(c.id)} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: T.cardPad, borderBottom: i < arr.length - 1 ? `1px solid ${T.line}` : 'none', cursor: 'pointer' }}>
-                      <Monogram letter={mono(c)} cat={catKey(c.category)} size={46} radius={14} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
+              <div>
+                <div style={{ padding: `0 ${T.pad}px`, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <h3 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 19, color: T.ink, letterSpacing: '-0.02em' }}>Just In</h3>
+                  <button onClick={() => router.push('/campaigns')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: T.fontUI, fontSize: 12.5, color: T.ink3, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}>전체보기 <Ico.chevR width="13" height="13" /></button>
+                </div>
+                <div style={{ display: 'flex', gap: 13, overflowX: 'auto', padding: `0 ${T.pad}px`, scrollbarWidth: 'none' }}>
+                  {list.map((c) => (
+                    <div key={c.id} onClick={() => open(c.id)} style={{ width: 268, flexShrink: 0, cursor: 'pointer' }}>
+                      <PhotoBlock cat={catKey(c.category)} monogram={mono(c)} imageUrl={campaignImg(c.id, c.image_url)} radius={T.radiusSm} style={{ height: 150 }}>
+                        <div style={{ position: 'absolute', inset: 0, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <Pill bg="rgba(255,255,255,0.92)" ink={T.ink} size={10.5}>{label(c)}</Pill>
+                          {dday(c.upload_end) !== null && dday(c.upload_end)! >= 0 && <Pill bg="rgba(0,0,0,0.32)" ink="#fff" size={10.5}>D-{dday(c.upload_end)}</Pill>}
+                        </div>
+                      </PhotoBlock>
+                      <div style={{ padding: '10px 2px 0' }}>
                         <div style={{ fontFamily: T.fontUI, fontSize: 11.5, color: T.ink3, fontWeight: 600 }}>{c.brands?.name}</div>
-                        <div style={{ fontFamily: T.fontUI, fontSize: 14.5, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 15, color: T.ink }}>{reward(c) ? `₩${won(reward(c))}` : (c.fee || '협의')}</div>
-                        {dday(c.upload_end) !== null && dday(c.upload_end)! >= 0 && <div style={{ fontFamily: T.fontUI, fontSize: 11, color: T.ink3 }}>D-{dday(c.upload_end)}</div>}
+                        <div style={{ fontFamily: T.fontUI, fontSize: 14.5, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', margin: '2px 0 6px', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{c.name}</div>
+                        <div style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 16, color: T.ink }}>{reward(c) ? `₩${won(reward(c))}` : (c.fee || '협의')}</div>
                       </div>
                     </div>
                   ))}
-                </Card>
+                </div>
               </div>
             )}
           </>
