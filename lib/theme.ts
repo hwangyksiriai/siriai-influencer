@@ -59,4 +59,4 @@ function imgSeed(id?: string): number {
   return h % 1000
 }
 export const campaignImg = (id?: string, url?: string | null) =>
-  url || `https://loremflickr.com/800/600/beauty,cosmetics,skincare,makeup?lock=${imgSeed(id)}`
+  url || `https://loremflickr.com/800/600/cosmetic,skincare,serum,product?lock=${imgSeed(id)}`
