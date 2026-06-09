@@ -80,6 +80,7 @@ export default function HomePage() {
       .select('*, brands(name)')
       .eq('recruitment_status', 'open')
       .eq('progress_status', 'in_progress')
+      .eq('app_hidden', false)
       .order('created_at', { ascending: false })
     setCampaigns((data as Campaign[]) || [])
     setLoading(false)
