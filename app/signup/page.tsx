@@ -3,20 +3,21 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { T } from '@/lib/theme'
 
 const inp: React.CSSProperties = {
-  width: '100%', background: 'rgba(255,255,255,.7)', border: '1px solid rgba(33,26,51,.18)',
-  borderRadius: 12, padding: '14px 16px', fontSize: 15, color: '#211A33',
+  width: '100%', background: T.surface2, border: `1px solid ${T.line}`,
+  borderRadius: 12, padding: '14px 16px', fontSize: 15, color: T.ink,
   fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
 }
 const lbl: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.16em',
-  textTransform: 'uppercase', color: 'rgba(33,26,51,.46)', display: 'block', marginBottom: 6,
+  fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.06em',
+  textTransform: 'uppercase', color: T.ink3, display: 'block', marginBottom: 6,
 }
 const chip = (active: boolean): React.CSSProperties => ({
-  borderRadius: 100, padding: '7px 14px', fontSize: 13, border: '1px solid rgba(33,26,51,.2)',
+  borderRadius: 100, padding: '7px 14px', fontSize: 13, border: `1px solid ${T.line}`,
   cursor: 'pointer', transition: 'all .15s',
-  background: active ? '#211A33' : 'transparent', color: active ? '#F3EEE2' : '#211A33',
+  background: active ? T.accent : 'transparent', color: active ? T.accentInk : T.ink,
 })
 
 const CATEGORIES = ['색조', '스킨케어', '패션', '라이프', '육아', '피트니스']
@@ -78,17 +79,17 @@ export default function SignupPage() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: `radial-gradient(60% 50% at 85% 5%, rgba(221,208,239,.4), transparent 55%), #F3EEE2`,
+        background: T.bg,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: '40px 28px', textAlign: 'center',
       }}>
         <p style={{ fontSize: 44, marginBottom: 16 }}>📨</p>
-        <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33', marginBottom: 12 }}>가입 신청이 완료됐어요</h1>
-        <p style={{ fontSize: 14, color: 'rgba(33,26,51,.6)', lineHeight: 1.7, marginBottom: 28 }}>
+        <h1 style={{ fontFamily: T.fontDisplay, fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink, marginBottom: 12 }}>가입 신청이 완료됐어요</h1>
+        <p style={{ fontSize: 14, color: T.ink2, lineHeight: 1.7, marginBottom: 28 }}>
           인스타그램 계정 확인 및 검토 후 승인돼요.<br />승인되면 로그인하실 수 있어요.
         </p>
         <Link href="/login" style={{ textDecoration: 'none' }}>
-          <button style={{ background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 100, padding: '13px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          <button style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: 100, padding: '13px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
             로그인 화면으로
           </button>
         </Link>
@@ -99,12 +100,12 @@ export default function SignupPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: `radial-gradient(60% 50% at 85% 5%, rgba(221,208,239,.4), transparent 55%), #F3EEE2`,
+      background: T.bg,
       display: 'flex', flexDirection: 'column', padding: '40px 28px',
     }}>
       <div style={{ marginBottom: 32 }}>
-        <Link href="/login" style={{ fontSize: 13, color: 'rgba(33,26,51,.46)', textDecoration: 'none' }}>← 로그인</Link>
-        <h1 style={{ fontFamily: "'Helvetica Neue','Helvetica',sans-serif", fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: '#211A33', marginTop: 16, marginBottom: 0 }}>
+        <Link href="/login" style={{ fontSize: 13, color: T.ink3, textDecoration: 'none' }}>← 로그인</Link>
+        <h1 style={{ fontFamily: T.fontDisplay, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink, marginTop: 16, marginBottom: 0 }}>
           회원가입
         </h1>
       </div>
@@ -112,7 +113,7 @@ export default function SignupPage() {
       {/* 스텝 인디케이터 */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
         {[1, 2].map(s => (
-          <div key={s} style={{ flex: 1, height: 3, borderRadius: 2, background: step >= s ? '#211A33' : 'rgba(33,26,51,.15)', transition: 'background .3s' }} />
+          <div key={s} style={{ flex: 1, height: 3, borderRadius: 2, background: step >= s ? T.accent : T.line, transition: 'background .3s' }} />
         ))}
       </div>
 
@@ -135,15 +136,15 @@ export default function SignupPage() {
                   required
                 />
                 <button type="button" onClick={() => setShowPw(s => !s)}
-                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 13, color: 'rgba(33,26,51,.5)', cursor: 'pointer' }}>
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 13, color: T.ink2, cursor: 'pointer' }}>
                   {showPw ? '숨김' : '보기'}
                 </button>
               </div>
-              <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', margin: '6px 2px 0' }}>영문과 숫자를 포함해 8자 이상</p>
+              <p style={{ fontSize: 11, color: T.ink3, margin: '6px 2px 0' }}>영문과 숫자를 포함해 8자 이상</p>
             </div>
-            {error && <p style={{ fontSize: 12, color: '#e03', margin: 0 }}>{error}</p>}
+            {error && <p style={{ fontSize: 12, color: T.danger, margin: 0 }}>{error}</p>}
             <button type="button" onClick={goStep2}
-              style={{ background: '#211A33', color: '#F3EEE2', borderRadius: 100, padding: '15px', fontSize: 15, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 'auto' }}>
+              style={{ background: T.accent, color: T.accentInk, borderRadius: 100, padding: '15px', fontSize: 15, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 'auto' }}>
               다음
             </button>
           </>
@@ -192,9 +193,9 @@ export default function SignupPage() {
                 <input style={inp} type="url" placeholder="틱톡 링크" value={form.tiktok_url} onChange={e => set('tiktok_url', e.target.value)} />
               </div>
             </div>
-            {error && <p style={{ fontSize: 12, color: '#e03', margin: 0 }}>{error}</p>}
+            {error && <p style={{ fontSize: 12, color: T.danger, margin: 0 }}>{error}</p>}
             <button type="submit" disabled={loading}
-              style={{ background: '#211A33', color: '#F3EEE2', borderRadius: 100, padding: '15px', fontSize: 15, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 'auto', opacity: loading ? .6 : 1 }}>
+              style={{ background: T.accent, color: T.accentInk, borderRadius: 100, padding: '15px', fontSize: 15, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 'auto', opacity: loading ? .6 : 1 }}>
               {loading ? '신청 중...' : '가입 신청'}
             </button>
           </>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
+import { T } from '@/lib/theme'
 
 interface Application {
   id: string
@@ -91,40 +92,40 @@ export default function UploadPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 80 }}>
-      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(33,26,51,.08)' }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>업로드</h1>
+    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120 }}>
+      <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${T.line}`, background: T.bg }}>
+        <h1 style={{ fontSize: 26, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink }}>업로드</h1>
       </div>
 
       <main style={{ padding: '24px 20px' }}>
         {done ? (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <p style={{ fontSize: 40, marginBottom: 16 }}>✅</p>
-            <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 8 }}>등록됐어요!</h2>
-            <p style={{ fontSize: 14, color: 'rgba(33,26,51,.5)', lineHeight: 1.6, marginBottom: 28 }}>콘텐츠 링크가 등록됐어요.<br/>검수 후 정산이 진행돼요.</p>
+            <h2 style={{ fontSize: 24, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink, marginBottom: 8 }}>등록됐어요!</h2>
+            <p style={{ fontSize: 14, color: T.ink2, lineHeight: 1.6, marginBottom: 28 }}>콘텐츠 링크가 등록됐어요.<br/>검수 후 정산이 진행돼요.</p>
             <button onClick={() => { setDone(false); setLink(''); setConfirmTag(false); setConfirmCollab(false) }}
-              style={{ background: '#211A33', color: '#F3EEE2', border: 'none', borderRadius: 100, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: 100, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               다른 콘텐츠 등록하기
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(33,26,51,.46)', display: 'block', marginBottom: 8 }}>
+              <label style={{ fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: T.ink3, display: 'block', marginBottom: 8 }}>
                 캠페인 선택
               </label>
               {apps.length === 0 ? (
-                <p style={{ fontSize: 14, color: 'rgba(33,26,51,.5)', padding: '12px 0' }}>업로드할 캠페인이 없어요.</p>
+                <p style={{ fontSize: 14, color: T.ink2, padding: '12px 0' }}>업로드할 캠페인이 없어요.</p>
               ) : (
                 <select value={selectedApp} onChange={e => setSelectedApp(e.target.value)}
-                  style={{ width: '100%', background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.18)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: '#211A33', fontFamily: 'inherit', outline: 'none', appearance: 'none' }}>
+                  style={{ width: '100%', background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, color: T.ink, fontFamily: 'inherit', outline: 'none', appearance: 'none' }}>
                   {apps.map(a => (
                     <option key={a.id} value={a.id}>{a.campaigns?.name}{isExpired(a) ? ' (마감)' : ''}</option>
                   ))}
                 </select>
               )}
               {!!uploadEnd && (
-                <p style={{ fontSize: 12, color: expired ? '#c62828' : 'rgba(33,26,51,.45)', marginTop: 8 }}>
+                <p style={{ fontSize: 12, color: expired ? T.danger : T.ink3, marginTop: 8 }}>
                   업로드 마감: {uploadEnd}{expired ? ' · 마감됨' : ''}
                 </p>
               )}
@@ -132,44 +133,44 @@ export default function UploadPage() {
 
             {expired ? (
               /* #17 마감 시 업로드 차단 */
-              <div style={{ background: 'rgba(198,40,40,.06)', border: '1px solid rgba(198,40,40,.2)', borderRadius: 12, padding: '18px', textAlign: 'center' }}>
+              <div style={{ background: 'rgba(176,71,59,0.07)', border: `1px solid ${T.line}`, borderRadius: 14, padding: '18px', textAlign: 'center' }}>
                 <p style={{ fontSize: 28, marginBottom: 8 }}>⏰</p>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#c62828', marginBottom: 6 }}>업로드 기간이 마감됐어요</p>
-                <p style={{ fontSize: 13, color: 'rgba(33,26,51,.6)', lineHeight: 1.6 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: T.danger, marginBottom: 6 }}>업로드 기간이 마감됐어요</p>
+                <p style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6 }}>
                   마감일({uploadEnd})이 지나 업로드할 수 없어요.<br/>일정 연장이 필요하면 담당자에게 문의해 주세요.
                 </p>
               </div>
             ) : (
               <>
                 <div>
-                  <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(33,26,51,.46)', display: 'block', marginBottom: 8 }}>
+                  <label style={{ fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: T.ink3, display: 'block', marginBottom: 8 }}>
                     콘텐츠 링크
                   </label>
-                  <div style={{ border: '1.5px solid rgba(33,26,51,.18)', borderRadius: 12, padding: '14px' }}>
+                  <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: '14px' }}>
                     <textarea value={link} onChange={e => setLink(e.target.value)}
                       placeholder="인스타그램 또는 유튜브 링크를 입력해 주세요."
                       rows={3}
-                      style={{ width: '100%', border: 'none', outline: 'none', fontSize: 15, fontFamily: 'inherit', color: '#211A33', resize: 'none', background: 'transparent' }} />
+                      style={{ width: '100%', border: 'none', outline: 'none', fontSize: 15, fontFamily: 'inherit', color: T.ink, resize: 'none', background: 'transparent' }} />
                   </div>
                 </div>
 
                 {/* 업로드 전 확인 (#21) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'rgba(255,255,255,.5)', border: '1px solid rgba(33,26,51,.12)', borderRadius: 12, padding: '14px' }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: '#211A33' }}>업로드 전 확인</p>
-                  <label style={{ display: 'flex', gap: 8, fontSize: 13, color: 'rgba(33,26,51,.75)', cursor: 'pointer', lineHeight: 1.5 }}>
-                    <input type="checkbox" checked={confirmTag} onChange={e => setConfirmTag(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, accentColor: '#211A33', flexShrink: 0 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 14, padding: '14px' }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: T.ink }}>업로드 전 확인</p>
+                  <label style={{ display: 'flex', gap: 8, fontSize: 13, color: T.ink2, cursor: 'pointer', lineHeight: 1.5 }}>
+                    <input type="checkbox" checked={confirmTag} onChange={e => setConfirmTag(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, accentColor: T.accent, flexShrink: 0 }} />
                     게시물에 브랜드 계정을 태그했어요.
                   </label>
                   {collabRequired && (
-                    <label style={{ display: 'flex', gap: 8, fontSize: 13, color: 'rgba(33,26,51,.75)', cursor: 'pointer', lineHeight: 1.5 }}>
-                      <input type="checkbox" checked={confirmCollab} onChange={e => setConfirmCollab(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, accentColor: '#211A33', flexShrink: 0 }} />
+                    <label style={{ display: 'flex', gap: 8, fontSize: 13, color: T.ink2, cursor: 'pointer', lineHeight: 1.5 }}>
+                      <input type="checkbox" checked={confirmCollab} onChange={e => setConfirmCollab(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, accentColor: T.accent, flexShrink: 0 }} />
                       공동작업자(브랜드 계정)를 추가했어요.
                     </label>
                   )}
                 </div>
 
                 <button type="submit" disabled={!canSubmit || submitting}
-                  style={{ width: '100%', background: canSubmit ? '#211A33' : 'rgba(33,26,51,.2)', color: '#F3EEE2', border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: canSubmit ? 'pointer' : 'default', marginTop: 8, transition: 'background .2s' }}>
+                  style={{ width: '100%', background: canSubmit ? T.accent : T.surface2, color: canSubmit ? T.accentInk : T.ink3, border: 'none', borderRadius: 14, padding: '15px', fontSize: 15, fontWeight: 700, cursor: canSubmit ? 'pointer' : 'default', marginTop: 8, transition: 'background .2s' }}>
                   {submitting ? '등록 중...' : '등록하기'}
                 </button>
               </>
@@ -180,25 +181,25 @@ export default function UploadPage() {
         {/* #16 등록한 콘텐츠 내역 */}
         {!done && subs.length > 0 && (
           <div style={{ marginTop: 36 }}>
-            <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(33,26,51,.46)', marginBottom: 12 }}>
+            <p style={{ fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: T.ink3, marginBottom: 12 }}>
               등록한 콘텐츠 ({subs.length})
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {subs.map(s => (
-                <div key={s.id} style={{ background: 'rgba(255,255,255,.55)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 12, padding: '12px 14px' }}>
+                <div key={s.id} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: '12px 14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: '#211A33', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {s.applications?.campaigns?.name || '캠페인'}
                     </p>
-                    <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, color: s.verified ? '#2e7d32' : '#e65100', background: s.verified ? 'rgba(46,125,50,.1)' : 'rgba(230,81,0,.1)' }}>
+                    <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, color: s.verified ? T.sageInk : T.butterInk, background: s.verified ? T.sage : T.butter }}>
                       {s.verified ? '인증완료' : '검수중'}
                     </span>
                   </div>
                   <a href={s.link} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: '#2A6FDB', textDecoration: 'none', wordBreak: 'break-all', display: 'block' }}>
+                    style={{ fontSize: 12, color: T.lavInk, textDecoration: 'none', wordBreak: 'break-all', display: 'block' }}>
                     {s.link}
                   </a>
-                  <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginTop: 4 }}>
+                  <p style={{ fontSize: 11, color: T.ink3, marginTop: 4 }}>
                     {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('ko-KR') : ''}
                   </p>
                 </div>
