@@ -6,9 +6,9 @@ import { Ico } from '@/components/ui'
 
 const items = [
   { href: '/home', label: '홈', icon: Ico.home },
-  { href: '/schedule', label: '스케줄', icon: Ico.calendar },
-  { href: '/upload', label: '업로드', icon: Ico.upload, center: true },
   { href: '/history', label: '내역', icon: Ico.doc },
+  { href: '/upload', label: '업로드', icon: Ico.upload, center: true },
+  { href: '/messages', label: '메시지', icon: Ico.chat },
   { href: '/my', label: '마이', icon: Ico.user },
 ]
 
