@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 import { T } from '@/lib/theme'
+import { Ico, Pill, Card, Chip, Avatar } from '@/components/ui'
 
 interface Influencer {
   id: string
@@ -41,14 +42,13 @@ interface Settlement {
 }
 
 const inp: React.CSSProperties = {
-  width: '100%', background: T.surface, border: `1px solid ${T.line}`,
-  borderRadius: 10, padding: '11px 14px', fontSize: 14, color: T.ink,
-  fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+  width: '100%', background: T.surface2, border: `1px solid ${T.line}`,
+  borderRadius: T.radiusSm, padding: '11px 14px', fontSize: 14, color: T.ink,
+  fontFamily: T.fontUI, outline: 'none', boxSizing: 'border-box',
 }
-const secCard: React.CSSProperties = { background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, overflow: 'hidden' }
-const secBtn: React.CSSProperties = { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', padding: '15px 16px', fontSize: 14, fontWeight: 700, color: T.ink, cursor: 'pointer', fontFamily: 'inherit' }
-const secBody: React.CSSProperties = { padding: '0 16px 18px' }
-const microLbl: React.CSSProperties = { fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: T.ink3, display: 'block', marginBottom: 6 }
+const secBtn: React.CSSProperties = { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', padding: 0, fontSize: 14.5, fontWeight: 700, color: T.ink, cursor: 'pointer', fontFamily: T.fontUI }
+const secBody: React.CSSProperties = { paddingTop: 14 }
+const microLbl: React.CSSProperties = { fontFamily: T.fontUI, fontSize: 11.5, fontWeight: 600, color: T.ink3, display: 'block', marginBottom: 6 }
 
 const statusLabel: Record<string, string> = { pending: '지급예정', paid: '지급완료', cancelled: '취소' }
 const statusColor: Record<string, string> = { pending: T.butterInk, paid: T.ok, cancelled: T.ink3 }
@@ -154,51 +154,69 @@ export default function MyPage() {
   }
 
   const chevron = (open: boolean) => (
-    <span style={{ fontSize: 18, color: T.ink3, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s', lineHeight: 1 }}>⌄</span>
+    <Ico.chevD width="18" height="18" style={{ color: T.ink3, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
   )
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120 }}>
       {/* 헤더 */}
-      <div style={{ padding: '20px 20px 0', borderBottom: `1px solid ${T.line}` }}>
+      <div style={{ padding: '20px 20px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h1 style={{ fontSize: 20, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink }}>마이</h1>
+          <h1 style={{ fontSize: 30, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink, lineHeight: 1.04 }}>마이</h1>
           <button onClick={handleLogout} style={{ background: 'none', border: 'none', fontSize: 12, color: T.ink3, cursor: 'pointer' }}>로그아웃</button>
         </div>
 
-        {/* 프로필 요약 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-          <label style={{ width: 56, height: 56, borderRadius: '50%', background: T.surface2, border: `1px solid ${T.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }} title="프로필 사진 변경">
-            <input type="file" accept="image/*" onChange={uploadAvatar} style={{ display: 'none' }} />
-            {inf.avatar_url ? <img src={inf.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🙋'}
-          </label>
-          <div>
-            <p style={{ fontSize: 18, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink }}>{inf.name}</p>
-            <p style={{ fontSize: 13, color: T.ink2, marginTop: 2 }}>@{inf.handle} · {inf.followers?.toLocaleString()}명</p>
-            <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
-              {(inf.category || []).map(c => (
-                <span key={c} style={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 100, padding: '2px 8px', fontSize: 10, color: T.ink2 }}>{c}</span>
-              ))}
+        {/* 프로필 카드 */}
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <label style={{ cursor: 'pointer', flexShrink: 0 }} title="프로필 사진 변경">
+              <input type="file" accept="image/*" onChange={uploadAvatar} style={{ display: 'none' }} />
+              <Avatar
+                tint={T.blush}
+                size={66}
+                ring
+                emoji={inf.avatar_url
+                  ? <img src={inf.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : '🙆‍♀️'}
+              />
+            </label>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 22, color: T.ink, letterSpacing: '-0.02em' }}>{inf.name}</span>
+                {(inf.category || []).map(c => (
+                  <Pill key={c} bg={T.blush} ink={T.blushInk} size={11}>{c}</Pill>
+                ))}
+              </div>
+              <div style={{ fontFamily: T.fontUI, fontSize: 13, color: T.ink2, marginTop: 3 }}>@{inf.handle}</div>
             </div>
           </div>
-        </div>
+          <div style={{ display: 'flex', marginTop: 18, paddingTop: 16, borderTop: `1px solid ${T.line}` }}>
+            {[
+              ['팔로워', inf.followers?.toLocaleString() ?? '0'],
+              ['카테고리', `${inf.category?.length ?? 0}개`],
+              ['정산건수', `${settlements.length}건`],
+            ].map(([l, v], i) => (
+              <div key={l} style={{ flex: 1, textAlign: 'center', borderLeft: i ? `1px solid ${T.line}` : 'none' }}>
+                <div style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 20, color: T.ink, letterSpacing: '-0.02em' }}>{v}</div>
+                <div style={{ fontFamily: T.fontUI, fontSize: 11.5, color: T.ink3, marginTop: 2 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
 
         {/* 탭 */}
-        <div style={{ display: 'flex', gap: 0 }}>
-          {[['profile', '프로필 편집'], ['settlement', '정산 내역'], ['settings', '설정']].map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k as any)}
-              style={{ background: 'none', border: 'none', borderBottom: tab === k ? `2px solid ${T.accent}` : '2px solid transparent', padding: '8px 14px', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? T.ink : T.ink3, cursor: 'pointer', marginBottom: -1 }}>
-              {l}
-            </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([['profile', '프로필 편집'], ['settlement', '정산 내역'], ['settings', '설정']] as const).map(([k, l]) => (
+            <Chip key={k} active={tab === k} onClick={() => setTab(k)}>{l}</Chip>
           ))}
         </div>
       </div>
 
-      <main style={{ padding: '20px 20px' }}>
+      <main style={{ padding: '16px 20px' }}>
         {tab === 'profile' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* 섹션 1: 기본 정보 */}
-            <div style={secCard}>
+            <Card>
               <button type="button" style={secBtn} onClick={() => toggleSec('basic')}>
                 <span>기본 정보</span>{chevron(openSec.basic)}
               </button>
@@ -226,10 +244,10 @@ export default function MyPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
 
             {/* 섹션 2: 협업 단가 */}
-            <div style={secCard}>
+            <Card>
               <button type="button" style={secBtn} onClick={() => toggleSec('rate')}>
                 <span>협업 단가</span>{chevron(openSec.rate)}
               </button>
@@ -254,10 +272,10 @@ export default function MyPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </Card>
 
             {/* 섹션 3: 정산 계좌 */}
-            <div style={secCard}>
+            <Card>
               <button type="button" style={secBtn} onClick={() => toggleSec('account')}>
                 <span>정산 계좌 · 세금정보</span>{chevron(openSec.account)}
               </button>
@@ -293,21 +311,21 @@ export default function MyPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
 
             <button onClick={handleSave} disabled={saving}
-              style={{ width: '100%', background: T.accent, color: T.accentInk, border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1, marginTop: 4 }}>
+              style={{ width: '100%', background: T.accent, color: T.accentInk, border: 'none', borderRadius: T.radiusSm, padding: '16px', fontSize: 15, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer', opacity: saving ? .6 : 1, marginTop: 4 }}>
               {saved ? '저장됐어요 ✓' : saving ? '저장 중...' : '저장하기'}
             </button>
           </div>
         )}
 
         {tab === 'settlement' && (
-          <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* 요약 */}
-            <div style={{ background: T.accent, borderRadius: 14, padding: '18px', color: T.accentInk, marginBottom: 20 }}>
+            <Card style={{ background: T.accent, border: 'none', color: T.accentInk }}>
               <p style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>지급 예정</p>
-              <p style={{ fontSize: 28, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 14 }}>{totalPending.toLocaleString()}원</p>
+              <p style={{ fontSize: 30, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 14 }}>{totalPending.toLocaleString()}원</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,.15)' }}>
                 <div>
                   <p style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', marginBottom: 2 }}>지급 완료</p>
@@ -318,24 +336,26 @@ export default function MyPage() {
                   <p style={{ fontSize: 15, fontWeight: 700 }}>{settlements.length}건</p>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* 내역 */}
             {settlements.length === 0 ? (
               <p style={{ fontSize: 14, color: T.ink2, textAlign: 'center', padding: '40px 0' }}>정산 내역이 없어요.</p>
             ) : (
-              settlements.map(s => (
-                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '14px 0', borderBottom: `1px solid ${T.line}` }}>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 3 }}>{s.submissions?.applications?.campaigns?.name || '캠페인'}</p>
-                    <p style={{ fontSize: 11, color: T.ink3 }}>{s.paid_at ? new Date(s.paid_at).toLocaleDateString('ko-KR') : '-'}</p>
+              <Card pad={false}>
+                {settlements.map((s, i) => (
+                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: `14px ${T.cardPad}px`, borderTop: i ? `1px solid ${T.line}` : 'none' }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 3 }}>{s.submissions?.applications?.campaigns?.name || '캠페인'}</p>
+                      <p style={{ fontSize: 11, color: T.ink3 }}>{s.paid_at ? new Date(s.paid_at).toLocaleDateString('ko-KR') : '-'}</p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: T.ink, marginBottom: 3 }}>{s.amount?.toLocaleString()}원</p>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: statusColor[s.status] }}>{statusLabel[s.status]}</span>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: T.ink, marginBottom: 3 }}>{s.amount?.toLocaleString()}원</p>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: statusColor[s.status] }}>{statusLabel[s.status]}</span>
-                  </div>
-                </div>
-              ))
+                ))}
+              </Card>
             )}
           </div>
         )}
@@ -343,33 +363,35 @@ export default function MyPage() {
         {tab === 'settings' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {/* 메뉴 */}
-            <div style={secCard}>
-              {[
-                ['/messages', '💬 메시지 (담당자 1:1)'],
-                ['/support?tab=notice', '📢 공지사항'],
-                ['/support?tab=faq', '❓ 자주 묻는 질문'],
-                ['/support?tab=inquiry', '✉️ 1:1 문의'],
-                ['/support?tab=guide', '📖 이용 가이드'],
-              ].map(([href, label], i) => (
-                <Link key={href} href={href} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 16px', textDecoration: 'none', color: T.ink, borderTop: i ? `1px solid ${T.line}` : 'none', fontSize: 14 }}>
-                  <span>{label}</span><span style={{ color: T.ink3, fontSize: 18 }}>›</span>
+            <Card pad={false}>
+              {([
+                ['/messages', '메시지 (담당자 1:1)', Ico.chat],
+                ['/support?tab=notice', '공지사항', Ico.bell],
+                ['/support?tab=faq', '자주 묻는 질문', Ico.doc],
+                ['/support?tab=inquiry', '1:1 문의', Ico.heart],
+                ['/support?tab=guide', '이용 가이드', Ico.gear],
+              ] as const).map(([href, label, I], i, arr) => (
+                <Link key={href} href={href} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: `16px ${T.cardPad}px`, textDecoration: 'none', color: T.ink, borderBottom: i < arr.length - 1 ? `1px solid ${T.line}` : 'none' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 11, background: T.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.ink2, flexShrink: 0 }}><I width="19" height="19" /></div>
+                  <span style={{ flex: 1, fontFamily: T.fontUI, fontSize: 14.5, color: T.ink, fontWeight: 500 }}>{label}</span>
+                  <Ico.chevR width="17" height="17" style={{ color: T.ink3 }} />
                 </Link>
               ))}
-            </div>
+            </Card>
 
             {/* 계정 정보 */}
             <div>
               <p style={microLbl}>계정 정보</p>
-              <div style={{ ...secCard, padding: '10px 16px' }}>
+              <Card style={{ padding: '10px 16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0' }}><span style={{ color: T.ink2 }}>이메일</span><span style={{ color: T.ink }}>{inf.email || '-'}</span></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderTop: `1px solid ${T.line}` }}><span style={{ color: T.ink2 }}>회원 상태</span><span style={{ color: T.ink }}>{({ pending: '승인대기', approved: '승인됨', rejected: '반려', withdrawn: '탈퇴' } as Record<string, string>)[inf.status] || '승인됨'}</span></div>
-              </div>
+              </Card>
             </div>
 
             {/* 알림 설정 */}
             <div>
               <p style={microLbl}>알림 설정</p>
-              <div style={{ ...secCard, padding: '4px 16px' }}>
+              <Card style={{ padding: '4px 16px' }}>
                 {([['notify_kakao', '카카오 알림톡'], ['notify_push', '앱 푸시 알림']] as const).map(([k, l], i) => {
                   const on = (inf as any)[k] !== false
                   return (
@@ -381,13 +403,13 @@ export default function MyPage() {
                     </div>
                   )
                 })}
-              </div>
+              </Card>
               <p style={{ fontSize: 11, color: T.ink3, marginTop: 6, lineHeight: 1.5 }}>선정·업로드·정산 안내를 받아요. (카카오 알림톡 연동 준비 중)</p>
             </div>
 
             {/* 로그아웃 / 탈퇴 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
-              <button onClick={handleLogout} style={{ width: '100%', background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>로그아웃</button>
+              <button onClick={handleLogout} style={{ width: '100%', background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, padding: '14px', fontSize: 14, fontWeight: 600, fontFamily: T.fontUI, cursor: 'pointer' }}>로그아웃</button>
               <button onClick={handleWithdraw} style={{ width: '100%', background: 'none', color: T.ink3, border: 'none', padding: '8px', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>회원 탈퇴</button>
             </div>
           </div>

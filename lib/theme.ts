@@ -20,6 +20,7 @@ export const PHOTO: Record<string, string> = {
   fashion: 'radial-gradient(120% 90% at 72% 18%, #E2DCF0 0%, #CFC6E6 40%, #ABA0CE 78%, #837799 100%)',
   fitness: 'radial-gradient(120% 90% at 72% 16%, #D7E4E6 0%, #B7CFD4 42%, #8FAFB6 78%, #65878E 100%)',
   life:    'radial-gradient(120% 90% at 70% 18%, #DCE9D5 0%, #C2D6B8 42%, #9FBC93 78%, #76946A 100%)',
+  tech:    'radial-gradient(120% 90% at 72% 16%, #E4E2DD 0%, #CBC8C0 42%, #A6A199 78%, #7C766C 100%)',
   default: 'radial-gradient(120% 90% at 72% 16%, #ECEAF2 0%, #DAD7E4 42%, #B9B5C6 78%, #8E8A9C 100%)',
 }
 
@@ -30,6 +31,7 @@ export const CAT: Record<string, [string, string, string]> = {
   fashion: ['패션', T.lav,    T.lavInk],
   fitness: ['헬스', T.sage,   T.sageInk],
   life:    ['라이프', T.sage,  T.sageInk],
+  tech:    ['테크', T.surface2, T.ink2],
   default: ['캠페인', T.surface2, T.ink2],
 }
 

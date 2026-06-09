@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
-import { T } from '@/lib/theme'
+import { T, catKey } from '@/lib/theme'
+import { Ico, Card, Monogram, IconBtn, AppHeader } from '@/components/ui'
 
 interface Application {
   id: string
@@ -91,123 +92,154 @@ export default function UploadPage() {
     if (uid) loadSubs(uid)
   }
 
+  const selectedName = selected?.campaigns?.name || ''
+  const monoLetter = selectedName.trim().charAt(0) || '·'
+
+  // 업로드 전 확인 체크리스트 항목 (실제 체크박스와 1:1 매핑)
+  const checks: { key: 'tag' | 'collab'; label: string; checked: boolean; toggle: () => void }[] = [
+    { key: 'tag', label: '게시물에 브랜드 계정을 태그했어요.', checked: confirmTag, toggle: () => setConfirmTag(v => !v) },
+    ...(collabRequired
+      ? [{ key: 'collab' as const, label: '공동작업자(브랜드 계정)를 추가했어요.', checked: confirmCollab, toggle: () => setConfirmCollab(v => !v) }]
+      : []),
+  ]
+
   return (
-    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120 }}>
-      <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${T.line}`, background: T.bg }}>
-        <h1 style={{ fontSize: 26, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink }}>업로드</h1>
-      </div>
+    <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, paddingBottom: 120 }}>
+      <div style={{ maxWidth: 480, margin: '0 auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 20 }}>
+          <AppHeader kicker="콘텐츠 제출" title="Upload Studio" right={<IconBtn icon={Ico.clock} />} />
 
-      <main style={{ padding: '24px 20px' }}>
-        {done ? (
-          <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <p style={{ fontSize: 40, marginBottom: 16 }}>✅</p>
-            <h2 style={{ fontSize: 24, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink, marginBottom: 8 }}>등록됐어요!</h2>
-            <p style={{ fontSize: 14, color: T.ink2, lineHeight: 1.6, marginBottom: 28 }}>콘텐츠 링크가 등록됐어요.<br/>검수 후 정산이 진행돼요.</p>
-            <button onClick={() => { setDone(false); setLink(''); setConfirmTag(false); setConfirmCollab(false) }}
-              style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: 100, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-              다른 콘텐츠 등록하기
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div>
-              <label style={{ fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: T.ink3, display: 'block', marginBottom: 8 }}>
-                캠페인 선택
-              </label>
-              {apps.length === 0 ? (
-                <p style={{ fontSize: 14, color: T.ink2, padding: '12px 0' }}>업로드할 캠페인이 없어요.</p>
-              ) : (
-                <select value={selectedApp} onChange={e => setSelectedApp(e.target.value)}
-                  style={{ width: '100%', background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, color: T.ink, fontFamily: 'inherit', outline: 'none', appearance: 'none' }}>
-                  {apps.map(a => (
-                    <option key={a.id} value={a.id}>{a.campaigns?.name}{isExpired(a) ? ' (마감)' : ''}</option>
-                  ))}
-                </select>
-              )}
-              {!!uploadEnd && (
-                <p style={{ fontSize: 12, color: expired ? T.danger : T.ink3, marginTop: 8 }}>
-                  업로드 마감: {uploadEnd}{expired ? ' · 마감됨' : ''}
-                </p>
-              )}
-            </div>
-
-            {expired ? (
-              /* #17 마감 시 업로드 차단 */
-              <div style={{ background: 'rgba(176,71,59,0.07)', border: `1px solid ${T.line}`, borderRadius: 14, padding: '18px', textAlign: 'center' }}>
-                <p style={{ fontSize: 28, marginBottom: 8 }}>⏰</p>
-                <p style={{ fontSize: 14, fontWeight: 700, color: T.danger, marginBottom: 6 }}>업로드 기간이 마감됐어요</p>
-                <p style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6 }}>
-                  마감일({uploadEnd})이 지나 업로드할 수 없어요.<br/>일정 연장이 필요하면 담당자에게 문의해 주세요.
-                </p>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <label style={{ fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: T.ink3, display: 'block', marginBottom: 8 }}>
-                    콘텐츠 링크
-                  </label>
-                  <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: '14px' }}>
-                    <textarea value={link} onChange={e => setLink(e.target.value)}
-                      placeholder="인스타그램 또는 유튜브 링크를 입력해 주세요."
-                      rows={3}
-                      style={{ width: '100%', border: 'none', outline: 'none', fontSize: 15, fontFamily: 'inherit', color: T.ink, resize: 'none', background: 'transparent' }} />
-                  </div>
-                </div>
-
-                {/* 업로드 전 확인 (#21) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 14, padding: '14px' }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: T.ink }}>업로드 전 확인</p>
-                  <label style={{ display: 'flex', gap: 8, fontSize: 13, color: T.ink2, cursor: 'pointer', lineHeight: 1.5 }}>
-                    <input type="checkbox" checked={confirmTag} onChange={e => setConfirmTag(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, accentColor: T.accent, flexShrink: 0 }} />
-                    게시물에 브랜드 계정을 태그했어요.
-                  </label>
-                  {collabRequired && (
-                    <label style={{ display: 'flex', gap: 8, fontSize: 13, color: T.ink2, cursor: 'pointer', lineHeight: 1.5 }}>
-                      <input type="checkbox" checked={confirmCollab} onChange={e => setConfirmCollab(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, accentColor: T.accent, flexShrink: 0 }} />
-                      공동작업자(브랜드 계정)를 추가했어요.
-                    </label>
-                  )}
-                </div>
-
-                <button type="submit" disabled={!canSubmit || submitting}
-                  style={{ width: '100%', background: canSubmit ? T.accent : T.surface2, color: canSubmit ? T.accentInk : T.ink3, border: 'none', borderRadius: 14, padding: '15px', fontSize: 15, fontWeight: 700, cursor: canSubmit ? 'pointer' : 'default', marginTop: 8, transition: 'background .2s' }}>
-                  {submitting ? '등록 중...' : '등록하기'}
+          {done ? (
+            /* 등록 완료 화면 */
+            <div style={{ padding: `8px ${T.pad}px` }}>
+              <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+                <p style={{ fontSize: 40, marginBottom: 16 }}>✅</p>
+                <h2 style={{ fontSize: 24, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink, marginBottom: 8 }}>등록됐어요!</h2>
+                <p style={{ fontSize: 14, color: T.ink2, lineHeight: 1.6, marginBottom: 28 }}>콘텐츠 링크가 등록됐어요.<br />검수 후 정산이 진행돼요.</p>
+                <button onClick={() => { setDone(false); setLink(''); setConfirmTag(false); setConfirmCollab(false) }}
+                  style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: 100, padding: '12px 28px', fontSize: 14, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer' }}>
+                  다른 콘텐츠 등록하기
                 </button>
-              </>
-            )}
-          </form>
-        )}
-
-        {/* #16 등록한 콘텐츠 내역 */}
-        {!done && subs.length > 0 && (
-          <div style={{ marginTop: 36 }}>
-            <p style={{ fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: T.ink3, marginBottom: 12 }}>
-              등록한 콘텐츠 ({subs.length})
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {subs.map(s => (
-                <div key={s.id} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {s.applications?.campaigns?.name || '캠페인'}
-                    </p>
-                    <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, color: s.verified ? T.sageInk : T.butterInk, background: s.verified ? T.sage : T.butter }}>
-                      {s.verified ? '인증완료' : '검수중'}
-                    </span>
-                  </div>
-                  <a href={s.link} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: T.lavInk, textDecoration: 'none', wordBreak: 'break-all', display: 'block' }}>
-                    {s.link}
-                  </a>
-                  <p style={{ fontSize: 11, color: T.ink3, marginTop: 4 }}>
-                    {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('ko-KR') : ''}
-                  </p>
-                </div>
-              ))}
+              </Card>
             </div>
-          </div>
-        )}
-      </main>
+          ) : (
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* 제출 캠페인 카드 */}
+              <div style={{ padding: `4px ${T.pad}px 0` }}>
+                <Card pad={false} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: 14 }}>
+                  <Monogram letter={monoLetter} cat={catKey(null)} size={48} radius={14} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: T.fontUI, fontSize: 11.5, color: T.ink3, fontWeight: 600 }}>제출 캠페인</div>
+                    {apps.length === 0 ? (
+                      <div style={{ fontFamily: T.fontUI, fontSize: 14, fontWeight: 700, color: T.ink2, letterSpacing: '-0.02em' }}>업로드할 캠페인이 없어요</div>
+                    ) : (
+                      <>
+                        <div style={{ fontFamily: T.fontUI, fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedName}</div>
+                        <select value={selectedApp} onChange={e => setSelectedApp(e.target.value)} aria-label="캠페인 선택"
+                          style={{ marginTop: 4, maxWidth: '100%', background: T.surface, border: `1px solid ${T.line}`, borderRadius: 999, padding: '5px 11px', fontSize: 12, color: T.ink2, fontFamily: T.fontUI, fontWeight: 600, outline: 'none', appearance: 'none', cursor: 'pointer' }}>
+                          {apps.map(a => (
+                            <option key={a.id} value={a.id}>{a.campaigns?.name}{isExpired(a) ? ' (마감)' : ''}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </div>
+                </Card>
+                {!!uploadEnd && (
+                  <p style={{ fontSize: 12, color: expired ? T.danger : T.ink3, margin: '8px 2px 0' }}>
+                    업로드 마감: {uploadEnd}{expired ? ' · 마감됨' : ''}
+                  </p>
+                )}
+              </div>
+
+              {expired ? (
+                /* #17 마감 시 업로드 차단 */
+                <div style={{ padding: `0 ${T.pad}px` }}>
+                  <Card style={{ background: T.blush, border: 'none', textAlign: 'center', padding: 22 }}>
+                    <p style={{ fontSize: 28, marginBottom: 8 }}>⏰</p>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: T.danger, marginBottom: 6 }}>업로드 기간이 마감됐어요</p>
+                    <p style={{ fontSize: 13, color: T.blushInk, lineHeight: 1.6 }}>
+                      마감일({uploadEnd})이 지나 업로드할 수 없어요.<br />일정 연장이 필요하면 담당자에게 문의해 주세요.
+                    </p>
+                  </Card>
+                </div>
+              ) : (
+                <>
+                  {/* 콘텐츠 링크 */}
+                  <div style={{ padding: `0 ${T.pad}px` }}>
+                    <div style={{ fontFamily: T.fontUI, fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 10 }}>콘텐츠 링크</div>
+                    <Card style={{ padding: 16 }}>
+                      <textarea value={link} onChange={e => setLink(e.target.value)}
+                        placeholder="인스타그램 또는 유튜브 링크를 입력해 주세요."
+                        rows={3}
+                        style={{ width: '100%', border: 'none', outline: 'none', fontSize: 15, fontFamily: T.fontUI, color: T.ink, resize: 'none', background: 'transparent', lineHeight: 1.55 }} />
+                    </Card>
+                  </div>
+
+                  {/* 업로드 전 확인 (#21) — 가이드라인 체크 비주얼 + 실제 체크박스 */}
+                  <div style={{ padding: `0 ${T.pad}px` }}>
+                    <Card style={{ padding: 16, background: T.wash, border: 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+                        <Ico.spark width="17" height="17" />
+                        <span style={{ fontFamily: T.fontUI, fontSize: 13.5, fontWeight: 700, color: T.ink }}>업로드 전 확인</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {checks.map(c => (
+                          <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                            <input type="checkbox" checked={c.checked} onChange={c.toggle} style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+                            <span style={{ width: 20, height: 20, borderRadius: 999, flexShrink: 0, background: c.checked ? T.sage : T.surface, color: T.sageInk, border: c.checked ? 'none' : `1.5px solid ${T.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {c.checked && <Ico.check width="13" height="13" />}
+                            </span>
+                            <span style={{ fontFamily: T.fontUI, fontSize: 13.5, color: c.checked ? T.ink2 : T.ink, textDecoration: c.checked ? 'line-through' : 'none' }}>{c.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* 제출 버튼 */}
+                  <div style={{ padding: `6px ${T.pad}px 0` }}>
+                    <button type="submit" disabled={!canSubmit || submitting}
+                      style={{ width: '100%', border: 'none', background: canSubmit ? T.accent : T.surface2, color: canSubmit ? T.accentInk : T.ink3, fontFamily: T.fontUI, fontWeight: 700, fontSize: 16, padding: '17px', borderRadius: T.radiusSm, cursor: canSubmit && !submitting ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background .2s' }}>
+                      <Ico.upload width="20" height="20" /> {submitting ? '등록 중...' : '등록하기'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </form>
+          )}
+
+          {/* #16 등록한 콘텐츠 내역 */}
+          {!done && subs.length > 0 && (
+            <div style={{ padding: `22px ${T.pad}px 0` }}>
+              <p style={{ fontFamily: T.fontUI, fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 10 }}>
+                등록한 콘텐츠 <span style={{ color: T.ink3, fontWeight: 500 }}>{subs.length}</span>
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {subs.map(s => (
+                  <Card key={s.id} style={{ padding: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <p style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {s.applications?.campaigns?.name || '캠페인'}
+                      </p>
+                      <span style={{ flexShrink: 0, fontFamily: T.fontUI, fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 999, color: s.verified ? T.sageInk : T.butterInk, background: s.verified ? T.sage : T.butter }}>
+                        {s.verified ? '인증완료' : '검수중'}
+                      </span>
+                    </div>
+                    <a href={s.link} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 12, color: T.lavInk, textDecoration: 'none', wordBreak: 'break-all', display: 'block' }}>
+                      {s.link}
+                    </a>
+                    <p style={{ fontSize: 11, color: T.ink3, marginTop: 4 }}>
+                      {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('ko-KR') : ''}
+                    </p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <BottomNav />
     </div>

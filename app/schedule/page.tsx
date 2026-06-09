@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 import { T } from '@/lib/theme'
-import { Ico } from '@/components/ui'
+import { Ico, Pill, Card, IconBtn, AppHeader } from '@/components/ui'
 
 interface Application {
   id: string
@@ -22,7 +22,9 @@ interface Application {
 }
 
 const statusLabel: Record<string, string> = { scouted: '섭외', pending: '대기', in_progress: '진행', not_done: '미진행' }
-const statusColor: Record<string, string> = { scouted: T.lavInk, pending: T.butterInk, in_progress: T.sageInk, not_done: T.blushInk }
+// 상태 → 카드 배경/잉크 색 매핑
+const statusBg: Record<string, string> = { scouted: T.lav, pending: T.butter, in_progress: T.sage, not_done: T.blush }
+const statusInk: Record<string, string> = { scouted: T.lavInk, pending: T.butterInk, in_progress: T.sageInk, not_done: T.blushInk }
 const ACTIVE = ['pending', 'in_progress', 'scouted']
 
 function getDday(dateStr: string): string {
@@ -33,26 +35,44 @@ function getDday(dateStr: string): string {
   return `D-${diff}`
 }
 
-function Card({ a }: { a: Application }) {
+// 타임라인 항목 — 왼쪽 dot+연결선, 오른쪽 컬러 카드
+function TimelineItem({ a, last, past = false }: { a: Application; last: boolean; past?: boolean }) {
+  const router = useRouter()
   const dday = getDday(a.campaigns?.upload_end)
+  const bg = past ? T.surface2 : (statusBg[a.status] || T.surface2)
+  const ink = past ? T.ink2 : (statusInk[a.status] || T.ink2)
+  const dot = past ? T.ink3 : (statusBg[a.status] || T.ink3)
+
   return (
-    <Link href={`/messages/${a.campaigns?.id}`} style={{ textDecoration: 'none' }}>
-      <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-        <div style={{ width: 48, height: 48, background: T.surface2, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${T.line}` }}>
-          <span style={{ fontSize: 10, fontWeight: 700, fontFamily: T.fontUI, color: T.ink3, letterSpacing: '.06em' }}>{a.campaigns?.content_type?.slice(0, 2)}</span>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 10, color: T.ink3, fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>{a.campaigns?.brands?.name}</p>
-          <p style={{ fontSize: 13, fontWeight: 700, color: T.ink, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.campaigns?.name}</p>
-          <p style={{ fontSize: 11, color: T.ink2 }}>
-            <span style={{ fontWeight: 700, color: statusColor[a.status] }}>{statusLabel[a.status] || a.status}</span>
-            {a.campaigns?.upload_end ? ` · 업로드 ~${a.campaigns.upload_end}` : ''}
-            <span style={{ color: T.lavInk }}> · 💬 메시지</span>
-          </p>
-        </div>
-        {dday && <span style={{ flexShrink: 0, background: dday === '완료' ? T.surface2 : T.accent, color: dday === '완료' ? T.ink3 : T.accentInk, fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 999 }}>{dday}</span>}
+    <div style={{ display: 'flex', gap: 14, opacity: past ? 0.6 : 1 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, paddingTop: 4 }}>
+        <span style={{ width: 11, height: 11, borderRadius: 999, background: dot, border: `2.5px solid ${T.surface}`, boxShadow: `0 0 0 1.5px ${dot}` }} />
+        {!last && <span style={{ flex: 1, width: 2, background: T.line, marginTop: 2 }} />}
       </div>
-    </Link>
+      <div style={{ flex: 1, minWidth: 0, paddingBottom: 14 }}>
+        <Card
+          onClick={() => router.push(`/messages/${a.campaigns?.id}`)}
+          style={{ padding: 16, background: bg, border: 'none', cursor: 'pointer' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Pill bg="rgba(255,255,255,0.55)" ink={ink} size={11}>{statusLabel[a.status] || a.status}</Pill>
+                {dday && <span style={{ fontFamily: T.fontUI, fontSize: 11, fontWeight: 700, color: ink, opacity: 0.7 }}>{dday}</span>}
+              </div>
+              <div style={{ fontFamily: T.fontUI, fontWeight: 700, fontSize: 16, color: ink, letterSpacing: '-0.02em', margin: '9px 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.campaigns?.name}</div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: T.fontUI, fontSize: 12.5, color: ink, opacity: 0.75 }}>
+                <Ico.pin width="14" height="14" />
+                {a.campaigns?.brands?.name}{a.campaigns?.upload_end ? ` · 업로드 ~${a.campaigns.upload_end}` : ''}
+              </div>
+            </div>
+            <div style={{ width: 30, height: 30, borderRadius: 999, background: 'rgba(255,255,255,0.5)', color: ink, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Ico.chevR width="16" height="16" />
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
   )
 }
 
@@ -78,52 +98,60 @@ export default function SchedulePage() {
   const past = apps.filter(a => !ACTIVE.includes(a.status))
 
   return (
-    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120 }}>
-      <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${T.line}` }}>
-        <h1 style={{ fontFamily: T.fontDisplay, fontSize: 28, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink }}>스케줄</h1>
-      </div>
+    <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, paddingBottom: 120 }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <AppHeader kicker="진행 일정" title="Schedule" right={<IconBtn icon={Ico.calendar} />} />
 
-      <main style={{ padding: '16px 20px' }}>
         {loading ? (
           <p style={{ color: T.ink3, fontSize: 14, textAlign: 'center', padding: '40px 0' }}>불러오는 중...</p>
+        ) : active.length === 0 && past.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+            <p style={{ fontSize: 28, marginBottom: 12 }}>📋</p>
+            <p style={{ fontSize: 15, color: T.ink2 }}>진행 중인 캠페인이 없어요.</p>
+            <Link href="/home" style={{ display: 'inline-block', marginTop: 16, fontSize: 13, color: T.lavInk, textDecoration: 'none' }}>캠페인 둘러보기 →</Link>
+          </div>
         ) : (
           <>
             {/* 진행 중 */}
-            {active.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '56px 0' }}>
-                <p style={{ fontSize: 28, marginBottom: 12 }}>📋</p>
-                <p style={{ fontSize: 15, color: T.ink2 }}>진행 중인 캠페인이 없어요.</p>
-                <Link href="/home" style={{ display: 'inline-block', marginTop: 16, fontSize: 13, color: T.lavInk, textDecoration: 'none' }}>캠페인 둘러보기 →</Link>
+            <div style={{ padding: `0 ${T.pad}px` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 19, color: T.ink, letterSpacing: '-0.02em' }}>진행 중 <span style={{ color: T.ink3 }}>{active.length}</span></h3>
+                <Pill bg={T.surface2} ink={T.ink2} size={12}>Timeline</Pill>
               </div>
-            ) : (
-              <>
-                <p style={{ fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: T.ink3, marginBottom: 10 }}>진행 중</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {active.map(a => <Card key={a.id} a={a} />)}
+              {active.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <p style={{ fontSize: 15, color: T.ink2 }}>진행 중인 캠페인이 없어요.</p>
+                  <Link href="/home" style={{ display: 'inline-block', marginTop: 12, fontSize: 13, color: T.lavInk, textDecoration: 'none' }}>캠페인 둘러보기 →</Link>
                 </div>
-                <div style={{ marginTop: 16 }}>
-                  <Link href="/upload">
-                    <button style={{ width: '100%', background: T.accent, color: T.accentInk, border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      <Ico.upload width={16} height={16} />
-                      콘텐츠 링크 업로드
-                    </button>
-                  </Link>
-                </div>
-              </>
-            )}
+              ) : (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {active.map((a, i) => <TimelineItem key={a.id} a={a} last={i === active.length - 1} />)}
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <Link href="/upload">
+                      <button style={{ width: '100%', background: T.accent, color: T.accentInk, border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <Ico.upload width={16} height={16} />
+                        콘텐츠 링크 업로드
+                      </button>
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* 지난 스케줄 */}
             {past.length > 0 && (
-              <div style={{ marginTop: 28 }}>
-                <p style={{ fontFamily: T.fontUI, fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: T.ink3, marginBottom: 10 }}>지난 스케줄</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, opacity: .85 }}>
-                  {past.map(a => <Card key={a.id} a={a} />)}
+              <div style={{ padding: `0 ${T.pad}px` }}>
+                <h3 style={{ margin: '0 0 12px', fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 19, color: T.ink, letterSpacing: '-0.02em' }}>지난 스케줄 <span style={{ color: T.ink3 }}>{past.length}</span></h3>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {past.map((a, i) => <TimelineItem key={a.id} a={a} last={i === past.length - 1} past />)}
                 </div>
               </div>
             )}
           </>
         )}
-      </main>
+      </div>
 
       <BottomNav />
     </div>
