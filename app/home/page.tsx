@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 import { Ico, Pill, Card, Monogram, IconBtn, PhotoBlock } from '@/components/ui'
-import { T, CAT, catKey, won } from '@/lib/theme'
+import { T, CAT, catKey, won, campaignImg } from '@/lib/theme'
 
 interface Campaign {
   id: string
@@ -91,7 +91,6 @@ export default function HomePage() {
   const hero = campaigns[0]
   const rail = campaigns.slice(1, 4)
   const list = campaigns.slice(4)
-  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, color: T.ink }}>
@@ -99,8 +98,7 @@ export default function HomePage() {
         {/* 헤더 */}
         <div style={{ padding: `0 ${T.pad}px`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontFamily: T.fontUI, fontSize: 12.5, fontWeight: 600, color: T.ink3, letterSpacing: '0.04em', textTransform: 'uppercase' }}>SIRIAI · CURATED · {today}</div>
-            <h1 style={{ margin: '4px 0 0', fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 30, letterSpacing: '-0.02em', color: T.ink }}>Curation</h1>
+            <h1 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 30, letterSpacing: '-0.02em', color: T.ink }}>Curation</h1>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <IconBtn icon={Ico.bell} badge={notis.length > 0} ariaLabel="알림" onClick={() => setShowNoti(true)} />
@@ -118,7 +116,7 @@ export default function HomePage() {
           <>
             {/* 히어로 */}
             <div style={{ padding: `0 ${T.pad}px` }}>
-              <PhotoBlock cat={catKey(hero.category)} imageUrl={hero.image_url || undefined} radius={T.radius} style={{ height: 360, cursor: 'pointer' }}>
+              <PhotoBlock cat={catKey(hero.category)} imageUrl={campaignImg(hero.id, hero.image_url)} radius={T.radius} style={{ height: 360, cursor: 'pointer' }}>
                 <div style={{ position: 'absolute', inset: 0, padding: T.cardPad, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} onClick={() => open(hero.id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Pill bg="rgba(255,255,255,0.92)" ink={T.ink}>✦ 이주의 추천</Pill>
@@ -126,7 +124,7 @@ export default function HomePage() {
                   </div>
                   <div>
                     <div style={{ color: 'rgba(255,255,255,0.85)', fontFamily: T.fontUI, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{hero.brands?.name} · {label(hero)}</div>
-                    <h2 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 34, lineHeight: 1.06, color: '#fff', letterSpacing: '-0.02em' }}>{hero.name}</h2>
+                    <h2 style={{ margin: 0, fontFamily: T.fontUI, fontWeight: 700, fontSize: 26, lineHeight: 1.25, color: '#fff', letterSpacing: '-0.02em' }}>{hero.name}</h2>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
                       <div>
                         <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11.5, fontFamily: T.fontUI, marginBottom: 2 }}>리워드</div>
@@ -148,7 +146,7 @@ export default function HomePage() {
                 <div style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: `0 ${T.pad}px`, scrollbarWidth: 'none' }}>
                   {rail.map((c) => (
                     <div key={c.id} onClick={() => open(c.id)} style={{ width: 168, flexShrink: 0, cursor: 'pointer' }}>
-                      <PhotoBlock cat={catKey(c.category)} monogram={mono(c)} imageUrl={c.image_url || undefined} style={{ height: 130 }}>
+                      <PhotoBlock cat={catKey(c.category)} monogram={mono(c)} imageUrl={campaignImg(c.id, c.image_url)} style={{ height: 130 }}>
                         <div style={{ position: 'absolute', top: 10, left: 10 }}><Pill bg="rgba(255,255,255,0.92)" ink={T.ink} size={10.5}>{label(c)}</Pill></div>
                       </PhotoBlock>
                       <div style={{ padding: '10px 2px 0' }}>

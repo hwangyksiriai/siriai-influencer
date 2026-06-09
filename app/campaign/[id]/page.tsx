@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Ico } from '@/components/ui'
-import { T, PHOTO, CAT, catKey, won } from '@/lib/theme'
+import { T, PHOTO, CAT, catKey, won, campaignImg } from '@/lib/theme'
 
 interface Campaign {
   id: string
@@ -12,6 +12,7 @@ interface Campaign {
   fee: string
   fee_amount: number
   product_value: number
+  app_hidden: boolean
   image_url: string
   content_type: string
   content_duration: number
@@ -64,6 +65,8 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     supabase.from('campaigns').select('*, brands(name)').eq('id', id).single().then(({ data }) => {
+      // 숨긴 캠페인(app_hidden)은 인플루언서가 직접 접근해도 볼 수 없게 차단
+      if (data && (data as Campaign).app_hidden) { router.replace('/home'); return }
       setCampaign(data as Campaign)
       setLoading(false)
     })
@@ -139,10 +142,7 @@ export default function CampaignDetailPage() {
 
       {/* 히어로 */}
       <div style={{ position: 'relative', width: '100%', aspectRatio: '4/3', background: PHOTO[k] || PHOTO.default }}>
-        {(campaign.image_url || campaign.product_photo_url || products[0]?.photo_url)
-          ? <img src={campaign.image_url || campaign.product_photo_url || products[0].photo_url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ position: 'absolute', right: 18, bottom: 8, fontFamily: T.fontDisplay, fontSize: 92, fontWeight: 600, color: 'rgba(255,255,255,0.3)', lineHeight: 1 }}>{mono}</span>
-        }
+        <img src={campaignImg(campaign.id, campaign.image_url || campaign.product_photo_url || products[0]?.photo_url)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(0,0,0,0.04) 70%, rgba(0,0,0,0.12))' }} />
       </div>
 
@@ -153,7 +153,7 @@ export default function CampaignDetailPage() {
           <span style={{ fontSize: 14, fontWeight: 600, color: T.ink2 }}>{campaign.brands?.name}</span>
           <span style={{ marginLeft: 'auto', padding: '4px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: catBg, color: catInk }}>{catLabel}</span>
         </div>
-        <h1 style={{ fontFamily: T.fontDisplay, fontSize: 26, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.18, color: T.ink, marginBottom: 12 }}>{campaign.name}</h1>
+        <h1 style={{ fontFamily: T.fontUI, fontSize: 23, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.3, color: T.ink, marginBottom: 12 }}>{campaign.name}</h1>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
           <span style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 28, color: T.ink, letterSpacing: '-0.02em' }}>{reward ? `₩${won(reward)}` : (campaign.fee || '협의')}</span>
           {campaign.product_value ? <span style={{ fontSize: 13, color: T.ink2, fontWeight: 500 }}>+ 제품 {won(campaign.product_value)}원 상당</span> : null}
