@@ -13,12 +13,19 @@ interface Application {
   status: string
   created_at: string
   campaigns: { id: string; name: string; content_type: string; category: string | null; brands: { name: string } }
+  submissions: { id: string }[]
 }
 
-const TABS = ['전체', '섭외', '대기', '진행', '미진행']
-const statusLabel: Record<string, string> = { scouted: '섭외', pending: '대기', in_progress: '진행', not_done: '미진행' }
-const statusInk: Record<string, string> = { scouted: T.lavInk, pending: T.butterInk, in_progress: T.sageInk, not_done: T.blushInk }
-const statusBg: Record<string, string> = { scouted: T.lav, pending: T.butter, in_progress: T.sage, not_done: T.blush }
+// 링크 업로드 완료 여부: in_progress이고 submission이 1건 이상이면 '완료'
+function dispStatus(a: Application): string {
+  if (a.status === 'in_progress' && a.submissions?.length > 0) return 'done'
+  return a.status
+}
+
+const TABS = ['전체', '섭외', '대기', '진행', '완료', '미진행']
+const statusLabel: Record<string, string> = { scouted: '섭외', pending: '대기', in_progress: '진행', not_done: '미진행', done: '완료' }
+const statusInk: Record<string, string> = { scouted: T.lavInk, pending: T.butterInk, in_progress: T.sageInk, not_done: T.blushInk, done: '#1A5E36' }
+const statusBg: Record<string, string> = { scouted: T.lav, pending: T.butter, in_progress: T.sage, not_done: T.blush, done: '#C4EDD5' }
 
 export default function HistoryPage() {
   const router = useRouter()
@@ -31,7 +38,7 @@ export default function HistoryPage() {
       if (!data.session) { router.replace('/login'); return }
       const { data: applications } = await supabase
         .from('applications')
-        .select('*, campaigns(id, name, content_type, category, brands(name))')
+        .select('*, campaigns(id, name, content_type, category, brands(name)), submissions(id)')
         .eq('influencer_id', data.session.user.id)
         .order('created_at', { ascending: false })
       setApps((applications as Application[]) || [])
@@ -39,10 +46,10 @@ export default function HistoryPage() {
     })
   }, [])
 
-  const tabMap: Record<string, string> = { '섭외': 'scouted', '대기': 'pending', '진행': 'in_progress', '미진행': 'not_done' }
-  const filtered = tab === '전체' ? apps : apps.filter(a => a.status === tabMap[tab])
+  const tabMap: Record<string, string> = { '섭외': 'scouted', '대기': 'pending', '진행': 'in_progress', '완료': 'done', '미진행': 'not_done' }
+  const filtered = tab === '전체' ? apps : apps.filter(a => dispStatus(a) === tabMap[tab])
 
-  const countBy = (s: string) => apps.filter(a => a.status === s).length
+  const countBy = (s: string) => apps.filter(a => dispStatus(a) === s).length
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI }}>
@@ -55,7 +62,7 @@ export default function HistoryPage() {
             <div style={{ color: 'rgba(255,255,255,0.65)', fontFamily: T.fontUI, fontSize: 12.5, fontWeight: 600, letterSpacing: '0.04em' }}>MY CAMPAIGNS</div>
             <div style={{ color: T.accentInk, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 34, letterSpacing: '-0.02em', margin: '6px 0 16px', lineHeight: 1 }}>{apps.length}건</div>
             <div style={{ display: 'flex', gap: 22 }}>
-              {[['진행', countBy('in_progress')], ['대기', countBy('pending')], ['미진행', countBy('not_done')]].map(([l, v]) => (
+              {[['완료', countBy('done')], ['진행', countBy('in_progress')], ['대기', countBy('pending')], ['미진행', countBy('not_done')]].map(([l, v]) => (
                 <div key={l}>
                   <div style={{ color: '#fff', fontFamily: T.fontUI, fontSize: 15, fontWeight: 700 }}>{v}건</div>
                   <div style={{ color: 'rgba(255,255,255,0.6)', fontFamily: T.fontUI, fontSize: 11.5, marginTop: 2 }}>{l}</div>
@@ -89,7 +96,7 @@ export default function HistoryPage() {
                       <div style={{ fontFamily: T.fontUI, fontSize: 12, color: T.ink3, marginTop: 2 }}>{a.campaigns?.brands?.name} · {a.campaigns?.content_type}</div>
                     </div>
                     <div style={{ flexShrink: 0 }}>
-                      <Pill bg={statusBg[a.status] || T.surface2} ink={statusInk[a.status] || T.ink2} size={10.5}>{statusLabel[a.status] || a.status}</Pill>
+                      <Pill bg={statusBg[dispStatus(a)] || T.surface2} ink={statusInk[dispStatus(a)] || T.ink2} size={10.5}>{statusLabel[dispStatus(a)] || a.status}</Pill>
                     </div>
                   </div>
                 </Link>
