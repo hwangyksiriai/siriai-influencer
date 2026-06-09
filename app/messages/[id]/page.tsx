@@ -16,10 +16,10 @@ export default function MessageThreadPage() {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
+  const latestCountRef = useRef(0) // 폴링 중 새 메시지 감지용
 
+  // 초기 로드 + uid 세팅
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null
-
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.replace('/login'); return }
       const u = data.session.user.id
@@ -29,37 +29,33 @@ export default function MessageThreadPage() {
         if (cm) setTitle(cm.name || '메시지')
       })
 
-      await load(u)
-
-      // Realtime — 이 스레드(campaign_id + influencer_id)에 새 메시지 INSERT 감지
-      channel = supabase
-        .channel(`msg-thread-${id}-${u}`)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'messages', filter: `campaign_id=eq.${id}` },
-          (payload) => {
-            const m = payload.new as Msg
-            // 이 인플루언서의 스레드 메시지만 처리
-            if (m.influencer_id && m.influencer_id !== u) return
-            setMsgs(prev => {
-              if (prev.find(x => x.id === m.id)) return prev // 중복 방지
-              return [...prev, m]
-            })
-            setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
-          }
-        )
-        .subscribe()
+      await loadMsgs(u, true)
     })
-
-    return () => {
-      if (channel) supabase.removeChannel(channel)
-    }
   }, [id])
 
-  async function load(u: string) {
-    const { data } = await supabase.from('messages').select('*').eq('campaign_id', id).eq('influencer_id', u).order('created_at')
-    setMsgs((data as Msg[]) || [])
-    setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+  // 3초마다 폴링 (uid 세팅 후 시작)
+  useEffect(() => {
+    if (!uid) return
+    const timer = setInterval(() => loadMsgs(uid, false), 3000)
+    return () => clearInterval(timer)
+  }, [uid])
+
+  async function loadMsgs(u: string, scrollAlways: boolean) {
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('campaign_id', id)
+      .eq('influencer_id', u)
+      .order('created_at')
+    const fresh = (data as Msg[]) || []
+
+    // 새 메시지가 있을 때만 스크롤
+    const hasNew = fresh.length > latestCountRef.current
+    latestCountRef.current = fresh.length
+    setMsgs(fresh)
+    if (scrollAlways || hasNew) {
+      setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    }
   }
 
   async function send() {
@@ -68,8 +64,7 @@ export default function MessageThreadPage() {
     setText(''); setSending(true)
     await supabase.from('messages').insert([{ campaign_id: id, influencer_id: uid, sender: 'influencer', body }])
     setSending(false)
-    // Realtime이 자동 수신하지만 자신이 보낸 메시지는 직접 추가
-    load(uid)
+    await loadMsgs(uid, true)
   }
 
   return (
