@@ -23,7 +23,9 @@ interface Campaign {
   brands: { name: string }
 }
 
-interface AppRow { id: string; status: string; campaigns: { name: string; upload_start: string; upload_end: string } | null }
+interface AppRow { id: string; status: string; proposed_fee: number | null; campaigns: { name: string; upload_start: string; upload_end: string } | null }
+
+const PREMIUM_MIN_FEE = 150000 // A등급 필터 기준: 이 금액 미만 캠페인은 A등급에게 숨김
 interface Noti { icon: string; title: string; body: string; href: string }
 
 function dday(dateStr?: string): number | null {
@@ -41,6 +43,7 @@ export default function HomePage() {
   const [userName, setUserName] = useState('')
   const [apps, setApps] = useState<AppRow[]>([])
   const [showNoti, setShowNoti] = useState(false)
+  const [myGrade, setMyGrade] = useState('')
 
   useEffect(() => {
     checkAuth()
@@ -51,15 +54,26 @@ export default function HomePage() {
     const { data } = await supabase.auth.getSession()
     if (!data.session) { router.replace('/login'); return }
     const uid = data.session.user.id
-    const { data: inf } = await supabase.from('influencers').select('name, handle, status').eq('id', uid).single()
+    const { data: inf } = await supabase.from('influencers')
+      .select('name, handle, status, ig_feed_max, ig_reels_max, yt_shorts_max, yt_video_max')
+      .eq('id', uid).single()
     if (inf && inf.status && inf.status !== 'approved') {
       await supabase.auth.signOut()
       router.replace('/login')
       return
     }
     if (inf) setUserName(inf.handle || inf.name)
-    const { data: ar } = await supabase.from('applications').select('id, status, campaigns(name, upload_start, upload_end)').eq('influencer_id', uid).order('created_at', { ascending: false })
-    setApps((ar as unknown as AppRow[]) || [])
+    const { data: ar } = await supabase.from('applications')
+      .select('id, status, proposed_fee, campaigns(name, upload_start, upload_end)')
+      .eq('influencer_id', uid).order('created_at', { ascending: false })
+    const rows = (ar as unknown as AppRow[]) || []
+    setApps(rows)
+    // 등급 계산: 단가표 최대값 vs 실제 제안 고료 최대값 중 높은 쪽
+    const i = inf as { ig_feed_max?: number; ig_reels_max?: number; yt_shorts_max?: number; yt_video_max?: number } | null
+    const rateMax = Math.max(i?.ig_reels_max || 0, i?.ig_feed_max || 0, i?.yt_video_max || 0, i?.yt_shorts_max || 0) * 10000
+    const propMax = rows.reduce((m, a) => Math.max(m, a.proposed_fee || 0), 0)
+    const repFee = Math.max(rateMax, propMax)
+    setMyGrade(repFee >= 300000 ? 'A' : repFee >= 150000 ? 'B' : repFee >= 50000 ? 'C' : '')
   }
 
   const notis: Noti[] = apps.flatMap(a => {
@@ -88,9 +102,13 @@ export default function HomePage() {
 
   const open = (id: string) => router.push(`/campaign/${id}`)
 
-  const hero = campaigns[0]
-  const rail = campaigns.slice(1, 4)
-  const list = campaigns.slice(4)
+  // A등급: fee_amount가 있고 PREMIUM_MIN_FEE 미만인 캠페인 숨김 (fee_amount 없으면 '협의' → 항상 노출)
+  const filtered = myGrade === 'A'
+    ? campaigns.filter(c => !c.fee_amount || c.fee_amount >= PREMIUM_MIN_FEE)
+    : campaigns
+  const hero = filtered[0]
+  const rail = filtered.slice(1, 4)
+  const list = filtered.slice(4)
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, color: T.ink }}>

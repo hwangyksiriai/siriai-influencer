@@ -9,7 +9,7 @@ export const T = {
   sageInk: '#3F5238', blushInk: '#7A4B43', lavInk: '#494173', butterInk: '#6E5A23',
   danger: '#B0473B', ok: '#3F5238',
   radius: 28, radiusSm: 18, pad: 20, cardPad: 22,
-  fontDisplay: "'Newsreader', Georgia, serif",
+  fontDisplay: "'Pretendard', -apple-system, system-ui, 'Apple SD Gothic Neo', sans-serif",
   fontUI: "'Pretendard', -apple-system, system-ui, 'Apple SD Gothic Neo', sans-serif",
 } as const
 
