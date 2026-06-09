@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
+import { Ico, Pill, IconBtn } from '@/components/ui'
+import { T, PHOTO, CAT, catKey, won } from '@/lib/theme'
 
 interface Campaign {
   id: string
@@ -26,22 +27,65 @@ interface AppRow { id: string; status: string; campaigns: { name: string; upload
 interface Noti { icon: string; title: string; body: string; href: string }
 
 const CATEGORY_FILTERS = ['전체', '색조', '스킨케어', '패션', '라이프', '육아', '피트니스']
-const TYPE_FILTERS = ['전체', '릴스', '피드']
-const chip = (active: boolean): React.CSSProperties => ({
-  borderRadius: 99, padding: '6px 14px', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap',
-  border: '1.5px solid', transition: 'all .15s', cursor: 'pointer',
-  borderColor: active ? '#211A33' : 'rgba(33,26,51,.2)',
-  background: active ? '#211A33' : 'transparent',
-  color: active ? '#F3EEE2' : 'rgba(33,26,51,.6)',
-})
+
+function dday(dateStr?: string): number | null {
+  if (!dateStr) return null
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+}
+
+function CampaignCard({ c, onOpen }: { c: Campaign; onOpen: () => void }) {
+  const k = catKey(c.category)
+  const [label, chipBg, chipInk] = CAT[k] || CAT.default
+  const mono = (c.brands?.name || '?').charAt(0)
+  const reward = c.fee_amount || c.product_value || 0
+  const d = dday(c.upload_end)
+  return (
+    <div onClick={onOpen} style={{ background: T.surface, borderRadius: T.radius, border: `1px solid ${T.line}`, boxShadow: '0 1px 2px rgba(20,20,20,0.03)', overflow: 'hidden', cursor: 'pointer' }}>
+      {/* 비주얼 */}
+      <div style={{ position: 'relative', height: 150, background: PHOTO[k] || PHOTO.default }}>
+        {c.image_url && <img src={c.image_url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.06) 70%, rgba(0,0,0,0.16))' }} />
+        {!c.image_url && <span style={{ position: 'absolute', right: 14, bottom: 6, fontFamily: T.fontDisplay, fontSize: 54, fontWeight: 600, color: 'rgba(255,255,255,0.32)', letterSpacing: '-0.03em', lineHeight: 1 }}>{mono}</span>}
+        <div style={{ position: 'absolute', inset: 0, padding: 14, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Pill bg="rgba(255,255,255,0.9)" ink={T.ink}>{label}</Pill>
+            {d !== null && d >= 0 && <Pill bg="rgba(0,0,0,0.32)" ink="#fff">D-{d}</Pill>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(255,255,255,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.fontDisplay, fontWeight: 600, color: T.ink, fontSize: 16 }}>{mono}</div>
+            <span style={{ color: '#fff', fontFamily: T.fontUI, fontWeight: 600, fontSize: 14, textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{c.brands?.name}</span>
+          </div>
+        </div>
+      </div>
+      {/* 본문 */}
+      <div style={{ padding: T.cardPad, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <h3 style={{ margin: '0 0 8px', fontFamily: T.fontUI, fontWeight: 700, fontSize: 17, color: T.ink, letterSpacing: '-0.02em' }}>{c.name}</h3>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 23, color: T.ink, letterSpacing: '-0.02em' }}>{reward ? `₩${won(reward)}` : (c.fee || '협의')}</span>
+            {c.product_value ? <span style={{ fontFamily: T.fontUI, fontSize: 12.5, color: T.ink2, fontWeight: 500 }}>+ 제품 제공</span> : null}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 6, color: T.ink2, fontFamily: T.fontUI, fontSize: 12.5, alignItems: 'center' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ico.camera width="15" height="15" />{c.content_type}</span>
+            {(c.collab_required || c.second_use_required) && <span style={{ color: T.ink3 }}>·</span>}
+            {c.collab_required && <span>공동작업</span>}
+            {c.second_use_required && <span>2차활용</span>}
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); onOpen() }} style={{ border: 'none', background: T.accent, color: T.accentInk, fontFamily: T.fontUI, fontWeight: 600, fontSize: 13.5, padding: '10px 18px', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap' }}>지원하기</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function HomePage() {
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [catFilter, setCatFilter] = useState('전체')
-  const [typeFilter, setTypeFilter] = useState('전체')
-  const [showFilter, setShowFilter] = useState(false)
+  const [query, setQuery] = useState('')
   const [userName, setUserName] = useState('')
   const [apps, setApps] = useState<AppRow[]>([])
   const [showNoti, setShowNoti] = useState(false)
@@ -91,128 +135,78 @@ export default function HomePage() {
 
   const filtered = campaigns.filter(c => {
     const matchCat = catFilter === '전체' || (Array.isArray(c.category) ? c.category.includes(catFilter) : c.category === catFilter)
-    const matchType = typeFilter === '전체' || c.content_type?.includes(typeFilter)
-    return matchCat && matchType
+    const q = query.trim().toLowerCase()
+    const matchQ = !q || c.name?.toLowerCase().includes(q) || c.brands?.name?.toLowerCase().includes(q)
+    return matchCat && matchQ
   })
 
-  const activeCount = (catFilter !== '전체' ? 1 : 0) + (typeFilter !== '전체' ? 1 : 0)
-
   return (
-    <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 80 }}>
-      {/* 헤더 */}
-      <div style={{ padding: '20px 20px 0', background: '#F3EEE2', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid rgba(33,26,51,.08)' }}>
-        {/* 로고 + 인사(오른쪽 같은 선상) */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <img src="/siriai-logo.png?v=3" alt="SIRIAI" style={{ height: 30, width: 'auto', display: 'block' }} />
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.3px', color: '#211A33' }}>{userName}님</p>
-            <p style={{ fontSize: 11, color: 'rgba(33,26,51,.5)', marginTop: 2 }}>사람과 브랜드를 잇는 특별한 연결</p>
+    <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, color: T.ink }}>
+      <div style={{ paddingTop: 'max(20px, env(safe-area-inset-top))', paddingBottom: 120 }}>
+        {/* 헤더 */}
+        <div style={{ padding: `0 ${T.pad}px`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontFamily: T.fontUI, fontSize: 13, fontWeight: 600, color: T.ink3, letterSpacing: '0.02em', marginBottom: 6 }}>안녕하세요, {userName || '게스트'}님 ✦</div>
+            <h1 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 30, lineHeight: 1.04, color: T.ink, letterSpacing: '-0.02em' }}>Campaigns</h1>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <IconBtn icon={Ico.bell} badge={notis.length > 0} ariaLabel="알림" onClick={() => setShowNoti(true)} />
+            <IconBtn icon={Ico.chat} ariaLabel="메시지" onClick={() => router.push('/messages')} />
           </div>
         </div>
 
-        {/* 메시지 + 종 (오른쪽) */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-          <Link href="/messages" aria-label="메시지" style={{ padding: 6, display: 'flex' }}>
-            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-          </Link>
-          <button onClick={() => setShowNoti(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, position: 'relative' }}>
-            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#211A33" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            {notis.length > 0 && <span style={{ position: 'absolute', top: 2, right: 2, background: '#e65100', color: '#fff', borderRadius: 100, fontSize: 9, fontWeight: 700, minWidth: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{notis.length}</span>}
-          </button>
-        </div>
-
-        {/* 캠페인 제목 + 필터 (종 아래) */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>캠페인</h1>
-          <button onClick={() => setShowFilter(v => !v)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: (showFilter || activeCount) ? '#211A33' : 'rgba(33,26,51,.06)', color: (showFilter || activeCount) ? '#F3EEE2' : '#211A33', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>
-            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
-            필터{activeCount > 0 ? ` ${activeCount}` : ''}
-          </button>
-        </div>
-
-        {/* 필터 패널 (아이콘 클릭 시) */}
-        {showFilter && (
-          <div style={{ paddingBottom: 12 }}>
-            <p style={{ fontSize: 11, color: 'rgba(33,26,51,.45)', fontWeight: 600, marginBottom: 6 }}>카테고리</p>
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 10 }}>
-              {CATEGORY_FILTERS.map(f => (
-                <button key={f} onClick={() => setCatFilter(f)} style={chip(catFilter === f)}>{f}</button>
-              ))}
-            </div>
-            <p style={{ fontSize: 11, color: 'rgba(33,26,51,.45)', fontWeight: 600, marginBottom: 6 }}>콘텐츠 타입</p>
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>
-              {TYPE_FILTERS.map(f => (
-                <button key={f} onClick={() => setTypeFilter(f)} style={chip(typeFilter === f)}>{f}</button>
-              ))}
-            </div>
+        {/* 검색 */}
+        <div style={{ padding: `14px ${T.pad}px 0` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: T.surface2, borderRadius: 999, color: T.ink3, border: `1px solid ${T.line}` }}>
+            <Ico.search width="19" height="19" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="브랜드·캠페인 검색"
+              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, fontFamily: T.fontUI, color: T.ink }} />
           </div>
-        )}
+        </div>
+
+        {/* 카테고리 칩 */}
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: `14px ${T.pad}px`, scrollbarWidth: 'none' }}>
+          {CATEGORY_FILTERS.map((c) => {
+            const on = c === catFilter
+            return (
+              <button key={c} onClick={() => setCatFilter(c)} style={{ padding: '7px 13px', borderRadius: 999, whiteSpace: 'nowrap', fontFamily: T.fontUI, fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', cursor: 'pointer', background: on ? T.accent : T.surface2, color: on ? T.accentInk : T.ink2, border: on ? 'none' : `1px solid ${T.line}`, flexShrink: 0 }}>{c}</button>
+            )
+          })}
+        </div>
+
+        {/* 카드 리스트 */}
+        <div style={{ padding: `0 ${T.pad}px`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {loading ? (
+            <p style={{ color: T.ink3, fontSize: 14, padding: '40px 0', textAlign: 'center' }}>불러오는 중...</p>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+              <p style={{ fontSize: 15, color: T.ink3 }}>모집중인 캠페인이 없어요.</p>
+            </div>
+          ) : (
+            filtered.map(c => <CampaignCard key={c.id} c={c} onOpen={() => router.push(`/campaign/${c.id}`)} />)
+          )}
+        </div>
       </div>
-
-      {/* 캠페인 목록 */}
-      <main style={{ padding: '12px 20px' }}>
-        {loading ? (
-          <p style={{ color: 'rgba(33,26,51,.4)', fontSize: 14, padding: '40px 0', textAlign: 'center' }}>불러오는 중...</p>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <p style={{ fontSize: 15, color: 'rgba(33,26,51,.5)' }}>모집중인 캠페인이 없어요.</p>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-            {filtered.map(c => (
-              <Link key={c.id} href={`/campaign/${c.id}`} style={{ textDecoration: 'none' }}>
-                <div style={{ background: '#fff', cursor: 'pointer', borderRadius: 2, overflow: 'hidden' }}>
-                  {/* 썸네일 */}
-                  <div style={{ width: '100%', aspectRatio: '3/4', background: 'linear-gradient(135deg, #f0ece2, #e8e4d8)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                    {c.image_url && <img src={c.image_url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-                    <span style={{ fontFamily: "'Helvetica Neue',sans-serif", fontSize: 11, fontWeight: 500, letterSpacing: '.08em', color: 'rgba(33,26,51,.4)', textTransform: 'uppercase' }}>{c.brands?.name}</span>
-                    {c.upload_end && (
-                      <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(33,26,51,.7)', color: '#F3EEE2', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 99 }}>
-                        {c.content_type}
-                      </div>
-                    )}
-                    <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 4 }}>
-                      {c.collab_required && <div style={{ background: '#2A6FDB', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4 }}>공동작업</div>}
-                      {c.second_use_required && <div style={{ background: '#e65100', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4 }}>2차활용</div>}
-                    </div>
-                  </div>
-                  {/* 정보 */}
-                  <div style={{ padding: '8px 10px 12px' }}>
-                    <p style={{ fontSize: 10, color: 'rgba(33,26,51,.4)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 2 }}>{c.brands?.name}</p>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: '#211A33', lineHeight: 1.3, marginBottom: 3 }}>{c.name}</p>
-                    {c.product_value ? <p style={{ fontSize: 11, color: 'rgba(33,26,51,.55)', marginBottom: 2 }}>🎁 {c.product_value.toLocaleString()}원 상당</p> : null}
-                    {(c.fee_amount || c.fee) && <p style={{ fontSize: 12, fontWeight: 800, color: '#e65100' }}>💵 {c.fee_amount ? `${c.fee_amount.toLocaleString()}원` : c.fee}</p>}
-                    <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
-                      <span style={{ background: 'rgba(33,26,51,.07)', padding: '2px 7px', borderRadius: 4, fontSize: 10, color: 'rgba(33,26,51,.6)' }}>{c.content_type}</span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </main>
 
       {/* 알림 패널 */}
       {showNoti && (
         <div onClick={() => setShowNoti(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 200, display: 'flex', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ marginTop: 56, width: '100%', maxWidth: 430, background: '#fff', borderRadius: '0 0 18px 18px', maxHeight: '72vh', overflowY: 'auto' }}>
-            <div style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(33,26,51,.08)', position: 'sticky', top: 0, background: '#fff' }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: '#211A33' }}>알림</span>
-              <button onClick={() => setShowNoti(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: 'rgba(33,26,51,.5)' }}>✕</button>
+          <div onClick={e => e.stopPropagation()} style={{ marginTop: 56, width: '100%', maxWidth: 480, background: T.surface, borderRadius: '0 0 24px 24px', maxHeight: '72vh', overflowY: 'auto' }}>
+            <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.line}`, position: 'sticky', top: 0, background: T.surface }}>
+              <span style={{ fontSize: 16, fontWeight: 700, fontFamily: T.fontUI, color: T.ink }}>알림</span>
+              <button onClick={() => setShowNoti(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: T.ink3 }}>✕</button>
             </div>
             {notis.length === 0 ? (
-              <p style={{ padding: '48px 20px', textAlign: 'center', fontSize: 14, color: 'rgba(33,26,51,.5)' }}>아직 알림이 없어요.</p>
+              <p style={{ padding: '48px 20px', textAlign: 'center', fontSize: 14, color: T.ink3 }}>아직 알림이 없어요.</p>
             ) : notis.map((n, i) => (
               <div key={i} onClick={() => { setShowNoti(false); router.push(n.href) }}
-                style={{ display: 'flex', gap: 12, padding: '14px 20px', borderBottom: '1px solid rgba(33,26,51,.05)', cursor: 'pointer', alignItems: 'center' }}>
+                style={{ display: 'flex', gap: 12, padding: '14px 20px', borderBottom: `1px solid ${T.line}`, cursor: 'pointer', alignItems: 'center' }}>
                 <span style={{ fontSize: 20 }}>{n.icon}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#211A33' }}>{n.title}</p>
-                  <p style={{ fontSize: 12, color: 'rgba(33,26,51,.55)', marginTop: 2, lineHeight: 1.5 }}>{n.body}</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{n.title}</p>
+                  <p style={{ fontSize: 12, color: T.ink2, marginTop: 2, lineHeight: 1.5 }}>{n.body}</p>
                 </div>
-                <span style={{ color: 'rgba(33,26,51,.3)', fontSize: 18, flexShrink: 0 }}>›</span>
+                <Ico.chevron width="18" height="18" style={{ color: T.ink3, flexShrink: 0 }} />
               </div>
             ))}
           </div>

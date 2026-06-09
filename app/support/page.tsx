@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { T } from '@/lib/theme'
 
 interface Faq { id: string; category: string; question: string; answer: string }
 interface Notice { id: string; title: string; body: string; pinned: boolean; created_at: string }
@@ -13,8 +14,8 @@ const TABS = [['notice', '공지사항'], ['faq', '자주 묻는 질문'], ['inq
 type TabKey = typeof TABS[number][0]
 const CATS = ['정산', '콘텐츠', '일정', '제품·배송', '계정', '기타']
 
-const card: React.CSSProperties = { background: 'rgba(255,255,255,.6)', border: '1px solid rgba(33,26,51,.1)', borderRadius: 14, padding: '14px 16px' }
-const inp: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,.7)', border: '1px solid rgba(33,26,51,.18)', borderRadius: 10, padding: '11px 13px', fontSize: 14, color: '#211A33', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
+const card: React.CSSProperties = { background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: '14px 16px' }
+const inp: React.CSSProperties = { width: '100%', background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 12, padding: '11px 13px', fontSize: 14, color: T.ink, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
 
 function SupportInner() {
   const router = useRouter()
@@ -62,15 +63,15 @@ function SupportInner() {
   const shownFaqs = faqCat === '전체' ? faqs : faqs.filter(f => f.category === faqCat)
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F3EEE2', paddingBottom: 40 }}>
-      <div style={{ padding: '18px 20px 0', borderBottom: '1px solid rgba(33,26,51,.08)', position: 'sticky', top: 0, background: '#F3EEE2', zIndex: 10 }}>
+    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 40 }}>
+      <div style={{ padding: '18px 20px 0', borderBottom: `1px solid ${T.line}`, position: 'sticky', top: 0, background: T.bg, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <button onClick={() => router.back()} style={{ background: 'none', border: 'none', fontSize: 20, color: '#211A33', cursor: 'pointer', padding: 0 }}>←</button>
-          <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.5px', color: '#211A33' }}>고객센터</h1>
+          <button onClick={() => router.back()} style={{ background: 'none', border: 'none', fontSize: 20, color: T.ink, cursor: 'pointer', padding: 0 }}>←</button>
+          <h1 style={{ fontFamily: T.fontDisplay, fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink }}>고객센터</h1>
         </div>
         <div style={{ display: 'flex', gap: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
           {TABS.map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k)} style={{ background: 'none', border: 'none', borderBottom: tab === k ? '2px solid #211A33' : '2px solid transparent', padding: '9px 13px', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? '#211A33' : 'rgba(33,26,51,.4)', cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: -1 }}>{l}</button>
+            <button key={k} onClick={() => setTab(k)} style={{ background: 'none', border: 'none', borderBottom: tab === k ? `2px solid ${T.accent}` : '2px solid transparent', padding: '9px 13px', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? T.ink : T.ink3, cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: -1 }}>{l}</button>
           ))}
         </div>
       </div>
@@ -78,12 +79,12 @@ function SupportInner() {
       <main style={{ padding: '18px 20px' }}>
         {tab === 'notice' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {notices.length === 0 ? <p style={{ fontSize: 14, color: 'rgba(33,26,51,.5)', textAlign: 'center', padding: '40px 0' }}>공지사항이 없어요.</p> :
+            {notices.length === 0 ? <p style={{ fontSize: 14, color: T.ink2, textAlign: 'center', padding: '40px 0' }}>공지사항이 없어요.</p> :
               notices.map(n => (
                 <div key={n.id} style={card}>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#211A33' }}>{n.pinned && <span style={{ color: '#e65100' }}>[필독] </span>}{n.title}</p>
-                  {n.body && <p style={{ fontSize: 13, color: 'rgba(33,26,51,.72)', lineHeight: 1.6, marginTop: 6, whiteSpace: 'pre-wrap' }}>{n.body}</p>}
-                  <p style={{ fontSize: 11, color: 'rgba(33,26,51,.4)', marginTop: 8 }}>{new Date(n.created_at).toLocaleDateString('ko-KR')}</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{n.pinned && <span style={{ color: T.butterInk }}>[필독] </span>}{n.title}</p>
+                  {n.body && <p style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6, marginTop: 6, whiteSpace: 'pre-wrap' }}>{n.body}</p>}
+                  <p style={{ fontSize: 11, color: T.ink3, marginTop: 8 }}>{new Date(n.created_at).toLocaleDateString('ko-KR')}</p>
                 </div>
               ))}
           </div>
@@ -93,17 +94,17 @@ function SupportInner() {
           <div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
               {faqCats.map(c => (
-                <button key={c} onClick={() => setFaqCat(c)} style={{ borderRadius: 100, padding: '6px 13px', fontSize: 12, border: '1px solid rgba(33,26,51,.2)', cursor: 'pointer', background: faqCat === c ? '#211A33' : 'transparent', color: faqCat === c ? '#F3EEE2' : '#211A33' }}>{c}</button>
+                <button key={c} onClick={() => setFaqCat(c)} style={{ borderRadius: 100, padding: '6px 13px', fontSize: 12, border: `1px solid ${T.line}`, cursor: 'pointer', background: faqCat === c ? T.accent : 'transparent', color: faqCat === c ? T.accentInk : T.ink }}>{c}</button>
               ))}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {shownFaqs.map(f => (
                 <div key={f.id} style={card}>
                   <button onClick={() => setOpenFaq(o => o === f.id ? null : f.id)} style={{ width: '100%', background: 'none', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: 0, textAlign: 'left', gap: 10 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#211A33' }}><span style={{ color: '#9b8bbd', marginRight: 6 }}>Q</span>{f.question}</span>
-                    <span style={{ fontSize: 16, color: 'rgba(33,26,51,.35)', transform: openFaq === f.id ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>⌄</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}><span style={{ color: T.lavInk, marginRight: 6 }}>Q</span>{f.question}</span>
+                    <span style={{ fontSize: 16, color: T.ink3, transform: openFaq === f.id ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>⌄</span>
                   </button>
-                  {openFaq === f.id && <p style={{ fontSize: 13, color: 'rgba(33,26,51,.72)', lineHeight: 1.7, marginTop: 10, whiteSpace: 'pre-wrap' }}>{f.answer}</p>}
+                  {openFaq === f.id && <p style={{ fontSize: 13, color: T.ink2, lineHeight: 1.7, marginTop: 10, whiteSpace: 'pre-wrap' }}>{f.answer}</p>}
                 </div>
               ))}
             </div>
@@ -113,17 +114,17 @@ function SupportInner() {
         {tab === 'inquiry' && (
           <div>
             {!uid ? (
-              <p style={{ fontSize: 14, color: 'rgba(33,26,51,.5)', textAlign: 'center', padding: '20px 0' }}>로그인 후 이용할 수 있어요. <Link href="/login" style={{ color: '#2A6FDB' }}>로그인</Link></p>
+              <p style={{ fontSize: 14, color: T.ink2, textAlign: 'center', padding: '20px 0' }}>로그인 후 이용할 수 있어요. <Link href="/login" style={{ color: T.lavInk }}>로그인</Link></p>
             ) : (
               <div style={{ ...card, marginBottom: 20 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#211A33', marginBottom: 10 }}>새 문의 작성</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: T.ink, marginBottom: 10 }}>새 문의 작성</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={inp}>
                     {CATS.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="제목 (선택)" style={inp} />
                   <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} placeholder="문의 내용을 입력해 주세요." rows={4} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
-                  <button onClick={submitInquiry} disabled={!form.body.trim() || sending} style={{ background: form.body.trim() ? '#211A33' : 'rgba(33,26,51,.2)', color: '#F3EEE2', border: 'none', borderRadius: 10, padding: '12px', fontSize: 14, fontWeight: 700, cursor: form.body.trim() ? 'pointer' : 'default' }}>{sending ? '접수 중...' : '문의 보내기'}</button>
+                  <button onClick={submitInquiry} disabled={!form.body.trim() || sending} style={{ background: form.body.trim() ? T.accent : T.line, color: T.accentInk, border: 'none', borderRadius: 16, padding: '12px', fontSize: 14, fontWeight: 700, cursor: form.body.trim() ? 'pointer' : 'default' }}>{sending ? '접수 중...' : '문의 보내기'}</button>
                 </div>
               </div>
             )}
@@ -131,15 +132,15 @@ function SupportInner() {
               {inquiries.map(q => (
                 <div key={q.id} style={card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, background: 'rgba(33,26,51,.08)', borderRadius: 100, padding: '2px 9px', color: 'rgba(33,26,51,.6)' }}>{q.category || '문의'}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: q.status === 'answered' ? '#2e7d32' : '#e65100' }}>{q.status === 'answered' ? '답변완료' : '답변대기'}</span>
+                    <span style={{ fontSize: 11, background: T.surface2, borderRadius: 100, padding: '2px 9px', color: T.ink2 }}>{q.category || '문의'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: q.status === 'answered' ? T.ok : T.butterInk }}>{q.status === 'answered' ? '답변완료' : '답변대기'}</span>
                   </div>
-                  {q.title && <p style={{ fontSize: 14, fontWeight: 600, color: '#211A33' }}>{q.title}</p>}
-                  <p style={{ fontSize: 13, color: 'rgba(33,26,51,.7)', lineHeight: 1.6, marginTop: 4, whiteSpace: 'pre-wrap' }}>{q.body}</p>
+                  {q.title && <p style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{q.title}</p>}
+                  <p style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6, marginTop: 4, whiteSpace: 'pre-wrap' }}>{q.body}</p>
                   {q.answer && (
-                    <div style={{ marginTop: 10, background: 'rgba(46,125,50,.06)', borderRadius: 10, padding: '10px 12px' }}>
-                      <p style={{ fontSize: 11, color: '#2e7d32', fontWeight: 700, marginBottom: 4 }}>답변</p>
-                      <p style={{ fontSize: 13, color: 'rgba(33,26,51,.8)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{q.answer}</p>
+                    <div style={{ marginTop: 10, background: 'rgba(63,82,56,0.07)', borderRadius: 12, padding: '10px 12px' }}>
+                      <p style={{ fontSize: 11, color: T.ok, fontWeight: 700, marginBottom: 4 }}>답변</p>
+                      <p style={{ fontSize: 13, color: T.ink2, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{q.answer}</p>
                     </div>
                   )}
                 </div>
@@ -158,8 +159,8 @@ function SupportInner() {
               ['5. 검수 & 정산', '담당자 검수 후 인증이 완료되면, 등록한 계좌로 원천징수 3.3% 제외 후 원고료가 지급돼요.'],
             ].map(([t, d]) => (
               <div key={t} style={card}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#211A33', marginBottom: 4 }}>{t}</p>
-                <p style={{ fontSize: 13, color: 'rgba(33,26,51,.7)', lineHeight: 1.6 }}>{d}</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: T.ink, marginBottom: 4 }}>{t}</p>
+                <p style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6 }}>{d}</p>
               </div>
             ))}
           </div>
@@ -170,5 +171,5 @@ function SupportInner() {
 }
 
 export default function SupportPage() {
-  return <Suspense fallback={<div style={{ minHeight: '100vh', background: '#F3EEE2' }} />}><SupportInner /></Suspense>
+  return <Suspense fallback={<div style={{ minHeight: '100vh', background: T.bg }} />}><SupportInner /></Suspense>
 }
