@@ -15,7 +15,7 @@ type TabKey = typeof TABS[number][0]
 const CATS = ['정산', '콘텐츠', '일정', '제품·배송', '계정', '기타']
 
 const card: React.CSSProperties = { background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: '14px 16px' }
-const inp: React.CSSProperties = { width: '100%', background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 12, padding: '11px 13px', fontSize: 14, color: T.ink, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
+const inp: React.CSSProperties = { width: '100%', background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 12, padding: '12px 14px', fontSize: 16, color: T.ink, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
 
 function SupportInner() {
   const router = useRouter()
@@ -23,6 +23,7 @@ function SupportInner() {
   const initTab = (params.get('tab') as TabKey) || 'notice'
   const [tab, setTab] = useState<TabKey>(initTab)
   const [uid, setUid] = useState('')
+  const [loaded, setLoaded] = useState(false)
   const [faqs, setFaqs] = useState<Faq[]>([])
   const [notices, setNotices] = useState<Notice[]>([])
   const [inquiries, setInquiries] = useState<Inquiry[]>([])
@@ -30,6 +31,8 @@ function SupportInner() {
   const [faqCat, setFaqCat] = useState('전체')
   const [form, setForm] = useState({ category: '정산', title: '', body: '' })
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
+  const [toast, setToast] = useState('')
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -41,21 +44,32 @@ function SupportInner() {
       ])
       setFaqs((f as Faq[]) || [])
       setNotices((n as Notice[]) || [])
-      if (id) loadInquiries(id)
+      if (id) await loadInquiries(id)
+      setLoaded(true)
     })
   }, [])
 
   async function loadInquiries(id: string) {
-    const { data } = await supabase.from('inquiries').select('*').eq('influencer_id', id).order('created_at', { ascending: false })
+    const { data, error } = await supabase.from('inquiries').select('*').eq('influencer_id', id).order('created_at', { ascending: false })
+    if (error) return // 실패 시 기존 목록 유지
     setInquiries((data as Inquiry[]) || [])
   }
 
   async function submitInquiry() {
+    if (sending) return
     if (!form.body.trim() || !uid) return
     setSending(true)
-    await supabase.from('inquiries').insert([{ influencer_id: uid, category: form.category, title: form.title.trim() || null, body: form.body.trim(), status: 'open' }])
+    setSendError('')
+    const { error } = await supabase.from('inquiries').insert([{ influencer_id: uid, category: form.category, title: form.title.trim() || null, body: form.body.trim(), status: 'open' }])
     setSending(false)
+    if (error) {
+      // 실패 시 작성 내용 유지
+      setSendError('문의 접수에 실패했어요. 잠시 후 다시 시도해 주세요.')
+      return
+    }
     setForm({ category: '정산', title: '', body: '' })
+    setToast('문의가 접수됐어요 ✓')
+    setTimeout(() => setToast(''), 2000)
     loadInquiries(uid)
   }
 
@@ -63,10 +77,13 @@ function SupportInner() {
   const shownFaqs = faqCat === '전체' ? faqs : faqs.filter(f => f.category === faqCat)
 
   return (
-    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 40 }}>
-      <div style={{ padding: '18px 20px 0', borderBottom: `1px solid ${T.line}`, position: 'sticky', top: 0, background: T.bg, zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <button onClick={() => router.back()} style={{ background: 'none', border: 'none', fontSize: 20, color: T.ink, cursor: 'pointer', padding: 0 }}>←</button>
+    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 40, maxWidth: 480, margin: '0 auto' }}>
+      <div style={{ padding: 'max(10px, env(safe-area-inset-top)) 20px 0', borderBottom: `1px solid ${T.line}`, position: 'sticky', top: 0, background: T.bg, zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <button type="button" onClick={() => router.back()} aria-label="뒤로가기"
+            style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', color: T.ink, cursor: 'pointer', padding: 0, marginLeft: -12 }}>
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
           <h1 style={{ fontFamily: T.fontDisplay, fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink }}>고객센터</h1>
         </div>
         <div style={{ display: 'flex', gap: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
@@ -79,7 +96,8 @@ function SupportInner() {
       <main style={{ padding: '18px 20px' }}>
         {tab === 'notice' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {notices.length === 0 ? <p style={{ fontSize: 14, color: T.ink2, textAlign: 'center', padding: '40px 0' }}>공지사항이 없어요.</p> :
+            {!loaded ? <p style={{ fontSize: 14, color: T.ink3, textAlign: 'center', padding: '40px 0' }}>불러오는 중...</p> :
+              notices.length === 0 ? <p style={{ fontSize: 14, color: T.ink2, textAlign: 'center', padding: '40px 0' }}>공지사항이 없어요.</p> :
               notices.map(n => (
                 <div key={n.id} style={card}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{n.pinned && <span style={{ color: T.butterInk }}>[필독] </span>}{n.title}</p>
@@ -98,9 +116,10 @@ function SupportInner() {
               ))}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {loaded && shownFaqs.length === 0 && <p style={{ fontSize: 14, color: T.ink2, textAlign: 'center', padding: '40px 0' }}>등록된 질문이 없어요.</p>}
               {shownFaqs.map(f => (
                 <div key={f.id} style={card}>
-                  <button onClick={() => setOpenFaq(o => o === f.id ? null : f.id)} style={{ width: '100%', background: 'none', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: 0, textAlign: 'left', gap: 10 }}>
+                  <button type="button" onClick={() => setOpenFaq(o => o === f.id ? null : f.id)} aria-expanded={openFaq === f.id} style={{ width: '100%', background: 'none', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: 0, textAlign: 'left', gap: 10 }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}><span style={{ color: T.lavInk, marginRight: 6 }}>Q</span>{f.question}</span>
                     <span style={{ fontSize: 16, color: T.ink3, transform: openFaq === f.id ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>⌄</span>
                   </button>
@@ -123,12 +142,14 @@ function SupportInner() {
                     {CATS.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="제목 (선택)" style={inp} />
-                  <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} placeholder="문의 내용을 입력해 주세요." rows={4} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
-                  <button onClick={submitInquiry} disabled={!form.body.trim() || sending} style={{ background: form.body.trim() ? T.accent : T.line, color: T.accentInk, border: 'none', borderRadius: 16, padding: '12px', fontSize: 14, fontWeight: 700, cursor: form.body.trim() ? 'pointer' : 'default' }}>{sending ? '접수 중...' : '문의 보내기'}</button>
+                  <textarea value={form.body} onChange={e => { setForm(f => ({ ...f, body: e.target.value })); if (sendError) setSendError('') }} placeholder="문의 내용을 입력해 주세요." rows={4} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
+                  {sendError && <p className="au-error" role="alert" style={{ fontSize: 12.5, color: T.danger, margin: 0, fontWeight: 500 }}>{sendError}</p>}
+                  <button type="button" onClick={submitInquiry} disabled={!form.body.trim() || sending} style={{ background: form.body.trim() ? T.accent : T.surface2, color: form.body.trim() ? T.accentInk : T.ink3, border: 'none', borderRadius: 16, padding: '13px', fontSize: 14, fontWeight: 700, cursor: form.body.trim() ? 'pointer' : 'default' }}>{sending ? '접수 중...' : '문의 보내기'}</button>
                 </div>
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {loaded && uid && inquiries.length === 0 && <p style={{ fontSize: 14, color: T.ink2, textAlign: 'center', padding: '20px 0' }}>접수한 문의가 없어요.</p>}
               {inquiries.map(q => (
                 <div key={q.id} style={card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -166,6 +187,8 @@ function SupportInner() {
           </div>
         )}
       </main>
+
+      {toast && <div style={{ position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)', background: T.accent, color: T.accentInk, padding: '10px 18px', borderRadius: 100, fontSize: 13.5, fontWeight: 600, zIndex: 50, whiteSpace: 'nowrap' }}>{toast}</div>}
     </div>
   )
 }

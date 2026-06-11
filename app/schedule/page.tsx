@@ -19,18 +19,31 @@ interface Application {
     content_type: string
     brands: { name: string }
   }
+  submissions: { id: string }[]
 }
 
-const statusLabel: Record<string, string> = { scouted: '섭외', pending: '대기', in_progress: '진행', not_done: '미진행' }
+const statusLabel: Record<string, string> = { scouted: '섭외', pending: '대기', in_progress: '진행', not_done: '미진행', done: '완료' }
 // 상태 → 카드 배경/잉크 색 매핑
-const statusBg: Record<string, string> = { scouted: T.lav, pending: T.butter, in_progress: T.sage, not_done: T.blush }
-const statusInk: Record<string, string> = { scouted: T.lavInk, pending: T.butterInk, in_progress: T.sageInk, not_done: T.blushInk }
+const statusBg: Record<string, string> = { scouted: T.lav, pending: T.butter, in_progress: T.sage, not_done: T.blush, done: '#C4EDD5' }
+const statusInk: Record<string, string> = { scouted: T.lavInk, pending: T.butterInk, in_progress: T.sageInk, not_done: T.blushInk, done: '#1A5E36' }
 const ACTIVE = ['pending', 'in_progress', 'scouted']
+
+// 내역 페이지와 동일한 파생 상태: 링크 업로드까지 했으면 '완료'
+function dispStatus(a: Application): string {
+  if (a.status === 'in_progress' && a.submissions?.length > 0) return 'done'
+  return a.status
+}
 
 function getDday(dateStr: string): string {
   if (!dateStr) return ''
-  const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  if (diff < 0) return '완료'
+  // 'YYYY-MM-DD' 를 로컬 자정 기준으로 파싱 (UTC 어긋남 제거)
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
+  if (!y || !m || !d) return ''
+  const target = new Date(y, m - 1, d)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const diff = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diff < 0) return '마감 지남'
   if (diff === 0) return 'D-day'
   return `D-${diff}`
 }
@@ -38,10 +51,12 @@ function getDday(dateStr: string): string {
 // 타임라인 항목 — 왼쪽 dot+연결선, 오른쪽 컬러 카드
 function TimelineItem({ a, last, past = false }: { a: Application; last: boolean; past?: boolean }) {
   const router = useRouter()
+  const st = dispStatus(a)
   const dday = getDday(a.campaigns?.upload_end)
-  const bg = past ? T.surface2 : (statusBg[a.status] || T.surface2)
-  const ink = past ? T.ink2 : (statusInk[a.status] || T.ink2)
-  const dot = past ? T.ink3 : (statusBg[a.status] || T.ink3)
+  const overdue = dday === '마감 지남' && st !== 'done'
+  const bg = past ? T.surface2 : (statusBg[st] || T.surface2)
+  const ink = past ? T.ink2 : (statusInk[st] || T.ink2)
+  const dot = past ? T.ink3 : (statusBg[st] || T.ink3)
 
   return (
     <div style={{ display: 'flex', gap: 14, opacity: past ? 0.6 : 1 }}>
@@ -52,18 +67,24 @@ function TimelineItem({ a, last, past = false }: { a: Application; last: boolean
       <div style={{ flex: 1, minWidth: 0, paddingBottom: 14 }}>
         <Card
           onClick={() => router.push(`/messages/${a.campaigns?.id}`)}
-          style={{ padding: 16, background: bg, border: 'none', cursor: 'pointer' }}
+          style={{ padding: 16, background: bg, border: 'none' }}
         >
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Pill bg="rgba(255,255,255,0.55)" ink={ink} size={11}>{statusLabel[a.status] || a.status}</Pill>
-                {dday && <span style={{ fontFamily: T.fontUI, fontSize: 11, fontWeight: 700, color: ink, opacity: 0.7 }}>{dday}</span>}
+                <Pill bg="rgba(255,255,255,0.55)" ink={ink} size={11}>{statusLabel[st] || st}</Pill>
+                {dday && (
+                  <span style={{ fontFamily: T.fontUI, fontSize: 11, fontWeight: 700, color: overdue ? T.danger : ink, opacity: overdue ? 1 : 0.7 }}>{dday}</span>
+                )}
               </div>
               <div style={{ fontFamily: T.fontUI, fontWeight: 700, fontSize: 16, color: ink, letterSpacing: '-0.02em', margin: '9px 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.campaigns?.name}</div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: T.fontUI, fontSize: 12.5, color: ink, opacity: 0.75 }}>
                 <Ico.pin width="14" height="14" />
                 {a.campaigns?.brands?.name}{a.campaigns?.upload_end ? ` · 업로드 ~${a.campaigns.upload_end}` : ''}
+              </div>
+              {/* 탭하면 어디로 가는지 명시 */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontFamily: T.fontUI, fontSize: 11.5, fontWeight: 700, color: ink, opacity: 0.85, marginTop: 8 }}>
+                <Ico.chat width="13" height="13" /> 메시지 보기 →
               </div>
             </div>
             <div style={{ width: 30, height: 30, borderRadius: 999, background: 'rgba(255,255,255,0.5)', color: ink, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -80,17 +101,24 @@ export default function SchedulePage() {
   const router = useRouter()
   const [apps, setApps] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+
+  async function load(uid: string) {
+    setLoadError(false)
+    const { data: applications, error } = await supabase
+      .from('applications')
+      .select('*, campaigns(id, name, upload_start, upload_end, content_type, brands(name)), submissions(id)')
+      .eq('influencer_id', uid)
+      .order('created_at', { ascending: false })
+    if (error) { setLoadError(true); setLoading(false); return }
+    setApps((applications as Application[]) || [])
+    setLoading(false)
+  }
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       if (!data.session) { router.replace('/login'); return }
-      const { data: applications } = await supabase
-        .from('applications')
-        .select('*, campaigns(id, name, upload_start, upload_end, content_type, brands(name))')
-        .eq('influencer_id', data.session.user.id)
-        .order('created_at', { ascending: false })
-      setApps((applications as Application[]) || [])
-      setLoading(false)
+      load(data.session.user.id)
     })
   }, [])
 
@@ -99,11 +127,19 @@ export default function SchedulePage() {
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, paddingBottom: 120 }}>
-      <div style={{ maxWidth: 480, margin: '0 auto', paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <AppHeader kicker="진행 일정" title="Schedule" right={<IconBtn icon={Ico.calendar} />} />
+      <div style={{ maxWidth: 480, margin: '0 auto', paddingTop: 'max(20px, env(safe-area-inset-top))', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <AppHeader kicker="진행 일정" title="Schedule" right={<IconBtn icon={Ico.doc} ariaLabel="신청 내역 보기" onClick={() => router.push('/history')} />} />
 
         {loading ? (
           <p style={{ color: T.ink3, fontSize: 14, textAlign: 'center', padding: '40px 0' }}>불러오는 중...</p>
+        ) : loadError ? (
+          <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+            <p style={{ fontSize: 15, color: T.ink2, marginBottom: 14 }}>일시적인 오류가 발생했어요.</p>
+            <button type="button" onClick={() => { setLoading(true); supabase.auth.getSession().then(({ data }) => data.session && load(data.session.user.id)) }}
+              style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: 100, padding: '11px 22px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              다시 시도
+            </button>
+          </div>
         ) : active.length === 0 && past.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '56px 20px' }}>
             <p style={{ fontSize: 28, marginBottom: 12 }}>📋</p>
@@ -129,11 +165,10 @@ export default function SchedulePage() {
                     {active.map((a, i) => <TimelineItem key={a.id} a={a} last={i === active.length - 1} />)}
                   </div>
                   <div style={{ marginTop: 4 }}>
-                    <Link href="/upload">
-                      <button style={{ width: '100%', background: T.accent, color: T.accentInk, border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <Ico.upload width={16} height={16} />
-                        콘텐츠 링크 업로드
-                      </button>
+                    {/* a>button 중첩(invalid HTML) 대신 Link 에 버튼 스타일 직접 적용 */}
+                    <Link href="/upload" style={{ width: '100%', background: T.accent, color: T.accentInk, borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none', boxSizing: 'border-box' }}>
+                      <Ico.upload width={16} height={16} />
+                      콘텐츠 링크 업로드
                     </Link>
                   </div>
                 </>

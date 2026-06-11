@@ -31,18 +31,25 @@ export default function HistoryPage() {
   const router = useRouter()
   const [apps, setApps] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [tab, setTab] = useState('전체')
 
+  async function load(uid: string) {
+    setLoadError(false)
+    const { data: applications, error } = await supabase
+      .from('applications')
+      .select('*, campaigns(id, name, content_type, category, brands(name)), submissions(id)')
+      .eq('influencer_id', uid)
+      .order('created_at', { ascending: false })
+    if (error) { setLoadError(true); setLoading(false); return }
+    setApps((applications as Application[]) || [])
+    setLoading(false)
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       if (!data.session) { router.replace('/login'); return }
-      const { data: applications } = await supabase
-        .from('applications')
-        .select('*, campaigns(id, name, content_type, category, brands(name)), submissions(id)')
-        .eq('influencer_id', data.session.user.id)
-        .order('created_at', { ascending: false })
-      setApps((applications as Application[]) || [])
-      setLoading(false)
+      load(data.session.user.id)
     })
   }, [])
 
@@ -54,15 +61,15 @@ export default function HistoryPage() {
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI }}>
       <div style={{ maxWidth: 480, margin: '0 auto', paddingTop: 'max(20px, env(safe-area-inset-top))', paddingBottom: 120, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <AppHeader kicker="신청 내역" title="My Activity" right={<IconBtn icon={Ico.filter} />} />
+        <AppHeader kicker="신청 내역" title="My Activity" right={<IconBtn icon={Ico.calendar} ariaLabel="진행 일정 보기" onClick={() => router.push('/schedule')} />} />
 
         {/* 요약 카드 */}
         <div style={{ padding: `4px ${T.pad}px 0` }}>
           <Card style={{ background: T.accent, border: 'none' }}>
             <div style={{ color: 'rgba(255,255,255,0.65)', fontFamily: T.fontUI, fontSize: 12.5, fontWeight: 600, letterSpacing: '0.04em' }}>MY CAMPAIGNS</div>
-            <div style={{ color: T.accentInk, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 34, letterSpacing: '-0.02em', margin: '6px 0 16px', lineHeight: 1 }}>{apps.length}건</div>
-            <div style={{ display: 'flex', gap: 22 }}>
-              {[['완료', countBy('done')], ['진행', countBy('in_progress')], ['대기', countBy('pending')], ['미진행', countBy('not_done')]].map(([l, v]) => (
+            <div style={{ color: T.accentInk, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 34, letterSpacing: '-0.02em', margin: '6px 0 16px', lineHeight: 1 }}>{loading ? '–' : `${apps.length}건`}</div>
+            <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+              {[['섭외', countBy('scouted')], ['대기', countBy('pending')], ['진행', countBy('in_progress')], ['완료', countBy('done')], ['미진행', countBy('not_done')]].map(([l, v]) => (
                 <div key={l}>
                   <div style={{ color: '#fff', fontFamily: T.fontUI, fontSize: 15, fontWeight: 700 }}>{v}건</div>
                   <div style={{ color: 'rgba(255,255,255,0.6)', fontFamily: T.fontUI, fontSize: 11.5, marginTop: 2 }}>{l}</div>
@@ -81,26 +88,38 @@ export default function HistoryPage() {
         <div style={{ padding: `0 ${T.pad}px` }}>
           {loading ? (
             <p style={{ color: T.ink3, fontSize: 14, textAlign: 'center', padding: '40px 0' }}>불러오는 중...</p>
+          ) : loadError ? (
+            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+              <p style={{ fontSize: 15, color: T.ink2, marginBottom: 14 }}>일시적인 오류가 발생했어요.</p>
+              <button type="button" onClick={() => { setLoading(true); supabase.auth.getSession().then(({ data }) => data.session && load(data.session.user.id)) }}
+                style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: 100, padding: '11px 22px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                다시 시도
+              </button>
+            </div>
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <p style={{ fontSize: 15, color: T.ink2 }}>내역이 없어요.</p>
             </div>
           ) : (
             <Card pad={false}>
-              {filtered.map((a, i) => (
-                <Link key={a.id} href={`/campaign/${a.campaigns?.id}`} style={{ textDecoration: 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: T.cardPad, borderBottom: i < filtered.length - 1 ? `1px solid ${T.line}` : 'none', cursor: 'pointer' }}>
+              {filtered.map((a, i) => {
+                const row = (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: T.cardPad, borderBottom: i < filtered.length - 1 ? `1px solid ${T.line}` : 'none', cursor: a.campaigns?.id ? 'pointer' : 'default' }}>
                     <Monogram letter={a.campaigns?.brands?.name?.charAt(0) || '·'} cat={catKey(a.campaigns?.category)} size={46} radius={14} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: T.fontUI, fontSize: 14.5, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.campaigns?.name}</div>
+                      <div style={{ fontFamily: T.fontUI, fontSize: 14.5, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.campaigns?.name || '종료된 캠페인'}</div>
                       <div style={{ fontFamily: T.fontUI, fontSize: 12, color: T.ink3, marginTop: 2 }}>{a.campaigns?.brands?.name} · {a.campaigns?.content_type}</div>
                     </div>
                     <div style={{ flexShrink: 0 }}>
                       <Pill bg={statusBg[dispStatus(a)] || T.surface2} ink={statusInk[dispStatus(a)] || T.ink2} size={10.5}>{statusLabel[dispStatus(a)] || a.status}</Pill>
                     </div>
                   </div>
-                </Link>
-              ))}
+                )
+                // 캠페인이 삭제된 행은 깨진 링크(/campaign/undefined) 대신 일반 행으로
+                return a.campaigns?.id
+                  ? <Link key={a.id} href={`/campaign/${a.campaigns.id}`} style={{ textDecoration: 'none' }}>{row}</Link>
+                  : <div key={a.id}>{row}</div>
+              })}
             </Card>
           )}
         </div>

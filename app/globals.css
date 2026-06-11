@@ -75,6 +75,9 @@ select.au-input {
 }
 .au-step { animation: au-up .3s ease both; }
 @keyframes au-spin { to { transform: rotate(360deg); } }
+/* 로딩 스켈레톤 */
+@keyframes skel-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.skel { background: var(--surface2); border-radius: 18px; animation: skel-pulse 1.4s ease-in-out infinite; }
 .au-spinner {
   display: inline-block; width: 15px; height: 15px;
   border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff;

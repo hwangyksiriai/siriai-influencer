@@ -37,7 +37,12 @@ export function Pill({ children, bg, ink, size = 11 }: { children: React.ReactNo
 }
 
 export function Card({ children, style, pad = true, onClick }: { children: React.ReactNode; style?: React.CSSProperties; pad?: boolean; onClick?: () => void }) {
-  return <div onClick={onClick} style={{ background: T.surface, borderRadius: T.radius, border: `1px solid ${T.line}`, boxShadow: '0 1px 2px rgba(20,20,20,0.03)', padding: pad ? T.cardPad : 0, boxSizing: 'border-box', ...style }}>{children}</div>
+  // 클릭 가능한 카드는 키보드/스크린리더에서도 동작하도록 시멘틱 부여
+  const interactive = onClick ? {
+    role: 'button', tabIndex: 0,
+    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } },
+  } : {}
+  return <div onClick={onClick} {...interactive} style={{ background: T.surface, borderRadius: T.radius, border: `1px solid ${T.line}`, boxShadow: '0 1px 2px rgba(20,20,20,0.03)', padding: pad ? T.cardPad : 0, boxSizing: 'border-box', cursor: onClick ? 'pointer' : undefined, ...style }}>{children}</div>
 }
 
 export function Monogram({ letter, cat = 'beauty', size = 46, radius = 14 }: { letter: React.ReactNode; cat?: string; size?: number; radius?: number }) {
@@ -50,14 +55,17 @@ export function Avatar({ emoji, size = 46, tint = T.blush, ring }: { emoji: Reac
 }
 
 export function Chip({ children, active, onClick }: { children: React.ReactNode; active?: boolean; onClick?: () => void }) {
-  return <button onClick={onClick} style={{ padding: '7px 13px', borderRadius: 999, whiteSpace: 'nowrap', fontFamily: T.fontUI, fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', cursor: onClick ? 'pointer' : 'default', background: active ? T.accent : T.surface2, color: active ? T.accentInk : T.ink2, border: active ? 'none' : `1px solid ${T.line}`, flexShrink: 0 }}>{children}</button>
+  // border 를 항상 유지(active 는 투명)해 토글 시 크기 들썩임 제거, minHeight 로 터치 영역 확보
+  return <button type="button" onClick={onClick} aria-pressed={active} style={{ padding: '8px 14px', minHeight: 36, borderRadius: 999, whiteSpace: 'nowrap', fontFamily: T.fontUI, fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', cursor: onClick ? 'pointer' : 'default', background: active ? T.accent : T.surface2, color: active ? T.accentInk : T.ink2, border: `1px solid ${active ? 'transparent' : T.line}`, flexShrink: 0 }}>{children}</button>
 }
 
 /* 카테고리별 추상 포토 블록 — 실사진 쓰려면 background 를 url(...) 로 교체 */
 export function PhotoBlock({ cat = 'beauty', monogram, style, children, radius = T.radiusSm, imageUrl }: { cat?: string; monogram?: React.ReactNode; style?: React.CSSProperties; children?: React.ReactNode; radius?: number; imageUrl?: string }) {
   return (
     <div style={{ position: 'relative', overflow: 'hidden', borderRadius: radius, background: PHOTO[cat] || PHOTO.default, ...style }}>
-      {imageUrl && <img src={imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+      {imageUrl && <img src={imageUrl} alt="" loading="lazy" decoding="async"
+        onError={e => { e.currentTarget.style.display = 'none' }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
       {monogram && !imageUrl && <span style={{ position: 'absolute', right: 14, bottom: 8, fontFamily: T.fontDisplay, fontSize: 54, fontWeight: 600, color: 'rgba(255,255,255,0.32)', letterSpacing: '-0.03em', lineHeight: 1 }}>{monogram}</span>}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.06) 70%, rgba(0,0,0,0.14))' }} />
       <div style={{ position: 'relative', height: '100%' }}>{children}</div>
@@ -67,7 +75,7 @@ export function PhotoBlock({ cat = 'beauty', monogram, style, children, radius =
 
 export function IconBtn({ icon: I, badge, onClick, ariaLabel }: { icon: (p: IcoProps) => React.ReactElement; badge?: boolean; onClick?: () => void; ariaLabel?: string }) {
   return (
-    <button onClick={onClick} aria-label={ariaLabel} style={{ width: 44, height: 44, borderRadius: 14, border: `1px solid ${T.line}`, background: T.surface, color: T.ink, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
+    <button type="button" onClick={onClick} aria-label={ariaLabel} style={{ width: 44, height: 44, borderRadius: 14, border: `1px solid ${T.line}`, background: T.surface, color: T.ink, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
       <I width="22" height="22" />
       {badge && <span style={{ position: 'absolute', top: 9, right: 9, width: 8, height: 8, borderRadius: 999, background: T.blushInk, border: `2px solid ${T.surface}` }} />}
     </button>
