@@ -61,6 +61,37 @@ select.au-input {
   background-repeat: no-repeat;
   background-position: right 16px center;
 }
+/* ── 다크(포토 배경) 인증 화면용 글래스 입력 ── */
+.au-dark {
+  transition: border-color .18s, box-shadow .18s, background .18s;
+  color: #fff;
+}
+.au-dark::placeholder { color: rgba(255,255,255,0.42); }
+.au-dark:focus {
+  border-color: rgba(255,255,255,0.65) !important;
+  background: rgba(255,255,255,0.16) !important;
+  box-shadow: 0 0 0 3.5px rgba(255,255,255,0.08);
+}
+.au-dark:-webkit-autofill,
+.au-dark:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 100px #2A2926 inset;
+  -webkit-text-fill-color: #fff;
+}
+select.au-dark {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 9l7 7 7-7' stroke='rgba(255,255,255,0.6)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+select.au-dark option { color: #1A1916; background: #fff; }
+.au-spinner-dark {
+  display: inline-block; width: 15px; height: 15px;
+  border: 2px solid rgba(26,25,22,0.25); border-top-color: #1A1916;
+  border-radius: 50%; animation: au-spin .7s linear infinite;
+  vertical-align: -2px; margin-right: 7px;
+}
+
 @keyframes au-shake {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-5px); }

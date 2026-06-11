@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
-import { Ico, Pill, IconBtn, PhotoBlock } from '@/components/ui'
+import { Ico, Pill, PhotoBlock, Monogram } from '@/components/ui'
 import { T, CAT, catKey, won, campaignImg } from '@/lib/theme'
 
 interface Campaign {
@@ -20,9 +20,8 @@ interface Campaign {
   upload_start: string
   upload_end: string
   timeline_apply_end: string
-  collab_required: boolean
-  second_use_required: boolean
   brands: { name: string }
+  applications: { count: number }[]
 }
 
 interface AppRow { id: string; status: string; proposed_fee: number | null; campaigns: { name: string; upload_start: string; upload_end: string } | null }
@@ -30,7 +29,12 @@ interface AppRow { id: string; status: string; proposed_fee: number | null; camp
 const PREMIUM_MIN_FEE = 150000 // A등급 필터 기준: 이 금액 미만 캠페인은 A등급에게 숨김
 interface Noti { icon: string; title: string; body: string; href: string }
 
-// 'YYYY-MM-DD' 를 로컬 자정 기준으로 D-day 계산 (UTC 어긋남 제거)
+// catKey 그룹 기준 필터
+const CATEGORY_FILTERS: [string, string | null][] = [
+  ['전체', null], ['뷰티', 'beauty'], ['푸드', 'food'], ['패션', 'fashion'], ['라이프', 'life'], ['헬스', 'fitness'],
+]
+
+// 'YYYY-MM-DD' 를 로컬 자정 기준으로 D-day 계산
 function dday(dateStr?: string): number | null {
   if (!dateStr) return null
   const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
@@ -39,28 +43,55 @@ function dday(dateStr?: string): number | null {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   return Math.round((new Date(y, m - 1, d).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
-// D-day 는 신청 마감 우선, 없으면 업로드 마감 폴백
 const applyDday = (c: Campaign) => {
   const v = dday(c.timeline_apply_end)
-  return v !== null ? { v, label: '신청' } : { v: dday(c.upload_end), label: '업로드' }
+  return v !== null ? v : dday(c.upload_end)
 }
-const mono = (c: Campaign) => (c.brands?.name || '?').charAt(0)
+const mono = (c: Campaign) => (c.brands?.name || '?').slice(0, 2).toUpperCase()
 const reward = (c: Campaign) => c.fee_amount || c.product_value || 0
 const label = (c: Campaign) => (CAT[catKey(c.category)] || CAT.default)[0]
+const applyCount = (c: Campaign) => c.applications?.[0]?.count ?? 0
+
+// 내 카테고리와의 적합도 — 카테고리 일치 시 높게, id 기반 결정적 가산
+function matchScore(c: Campaign, myCats: string[]): number {
+  const key = catKey(c.category)
+  const mine = myCats.map(x => catKey(x))
+  const base = mine.includes(key) ? 88 : 76
+  let h = 0
+  for (const ch of c.id) h = (h * 31 + ch.charCodeAt(0)) % 997
+  return Math.min(97, base + (h % 10))
+}
+
+// 둥근 아이콘 버튼 (레퍼런스의 원형 버튼)
+function RoundBtn({ icon: I, onClick, ariaLabel, badge }: { icon: (p: React.SVGProps<SVGSVGElement>) => React.ReactElement; onClick?: () => void; ariaLabel: string; badge?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={ariaLabel}
+      style={{ width: 44, height: 44, borderRadius: 999, border: `1px solid ${T.line}`, background: T.surface, color: T.ink, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
+      <I width="21" height="21" />
+      {badge && <span style={{ position: 'absolute', top: 9, right: 10, width: 7, height: 7, borderRadius: 999, background: T.blushInk, border: `2px solid ${T.surface}` }} />}
+    </button>
+  )
+}
 
 export default function HomePage() {
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [myCats, setMyCats] = useState<string[]>([])
   const [apps, setApps] = useState<AppRow[]>([])
   const [showNoti, setShowNoti] = useState(false)
   const [loadError, setLoadError] = useState(false)
   const [myGrade, setMyGrade] = useState('')
+  const [catFilter, setCatFilter] = useState<string | null>(null)
+  const [liked, setLiked] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     // 등급 계산과 캠페인 조회를 함께 끝낸 뒤 렌더 (A등급 필터 적용 전 깜빡임 제거)
     Promise.all([checkAuth(), fetchCampaigns()]).then(() => setLoading(false))
+    // 관심 캠페인 복원
+    try { setLiked(new Set(JSON.parse(localStorage.getItem('liked_campaigns') || '[]'))) } catch { /* 무시 */ }
   }, [])
 
   // 알림 패널 열림: 배경 스크롤 잠금 + Escape 닫기
@@ -72,19 +103,32 @@ export default function HomePage() {
     return () => { document.body.style.overflow = ''; window.removeEventListener('keydown', onKey) }
   }, [showNoti])
 
+  function toggleLike(id: string) {
+    setLiked(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      try { localStorage.setItem('liked_campaigns', JSON.stringify([...next])) } catch { /* 무시 */ }
+      return next
+    })
+  }
+
   async function checkAuth() {
     const { data } = await supabase.auth.getSession()
     if (!data.session) { router.replace('/login'); return }
     const uid = data.session.user.id
     const { data: inf } = await supabase.from('influencers')
-      .select('name, handle, status, ig_feed_max, ig_reels_max, yt_shorts_max, yt_video_max')
+      .select('name, handle, status, avatar_url, category, ig_feed_max, ig_reels_max, yt_shorts_max, yt_video_max')
       .eq('id', uid).single()
     if (inf && inf.status && inf.status !== 'approved') {
       await supabase.auth.signOut()
       router.replace('/login')
       return
     }
-    if (inf) setUserName(inf.handle || inf.name)
+    if (inf) {
+      setUserName(inf.name || inf.handle)
+      setAvatarUrl(inf.avatar_url || '')
+      setMyCats(Array.isArray(inf.category) ? inf.category : inf.category ? [inf.category] : [])
+    }
     const { data: ar } = await supabase.from('applications')
       .select('id, status, proposed_fee, campaigns(name, upload_start, upload_end)')
       .eq('influencer_id', uid).order('created_at', { ascending: false })
@@ -114,7 +158,7 @@ export default function HomePage() {
     setLoadError(false)
     const { data, error } = await supabase
       .from('campaigns')
-      .select('*, brands(name)')
+      .select('*, brands(name), applications(count)')
       .eq('recruitment_status', 'open')
       .eq('progress_status', 'in_progress')
       .eq('app_hidden', false)
@@ -123,142 +167,136 @@ export default function HomePage() {
     setCampaigns((data as Campaign[]) || [])
   }
 
-  const open = (id: string) => router.push(`/campaign/${id}`)
-
   // A등급: fee_amount가 있고 PREMIUM_MIN_FEE 미만인 캠페인 숨김 (fee_amount 없으면 '협의' → 항상 노출)
-  const filtered = myGrade === 'A'
+  const gradeFiltered = myGrade === 'A'
     ? campaigns.filter(c => !c.fee_amount || c.fee_amount >= PREMIUM_MIN_FEE)
     : campaigns
-  const hero = filtered[0]
-  const rail = filtered.slice(1, 4)
-  const list = filtered.slice(4)
+  const filtered = gradeFiltered.filter(c => catFilter === null || catKey(c.category) === catFilter)
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, color: T.ink }}>
-      <div style={{ maxWidth: 480, margin: '0 auto', paddingTop: 'max(20px, env(safe-area-inset-top))', paddingBottom: 120, display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {/* 헤더 */}
-        <div style={{ padding: `0 ${T.pad}px`, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* 로고 + 아이콘 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <img src="/siriai-logo.png?v=3" alt="SIRIAI" style={{ height: 26, width: 'auto', display: 'block' }} />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <IconBtn icon={Ico.bell} badge={notis.length > 0} ariaLabel="알림" onClick={() => setShowNoti(true)} />
-              <IconBtn icon={Ico.chat} ariaLabel="메시지" onClick={() => router.push('/messages')} />
-            </div>
+      <div style={{ maxWidth: 480, margin: '0 auto', paddingTop: 'max(16px, env(safe-area-inset-top))', paddingBottom: 120, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* 인사 헤더 — 아바타 + 인사말 + 검색/알림 */}
+        <div style={{ padding: `0 ${T.pad}px`, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link href="/my" aria-label="마이페이지" style={{ textDecoration: 'none', flexShrink: 0 }}>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" style={{ width: 46, height: 46, borderRadius: 16, objectFit: 'cover', border: `1px solid ${T.line}`, display: 'block' }} />
+            ) : (
+              <span style={{ width: 46, height: 46, borderRadius: 16, border: `1px solid ${T.line}`, background: T.surface, color: T.ink, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 700 }}>
+                {(userName || '게').charAt(0)}
+              </span>
+            )}
+          </Link>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 12.5, color: T.ink3, fontWeight: 500 }}>안녕하세요,</p>
+            <p style={{ margin: 0, fontSize: 17, color: T.ink, fontWeight: 800, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName ? `${userName}님` : '게스트님'}</p>
           </div>
-          {/* 인사 + 태그라인 */}
-          <div>
-            <h1 style={{ margin: 0, fontFamily: T.fontUI, fontWeight: 800, fontSize: 24, letterSpacing: '-0.03em', color: T.ink }}>{userName || '게스트'}님</h1>
-            <p style={{ margin: '4px 0 0', fontFamily: T.fontUI, fontSize: 13, color: T.ink3 }}>사람과 브랜드를 잇는 특별한 연결</p>
-          </div>
+          <RoundBtn icon={Ico.search} ariaLabel="캠페인 둘러보기" onClick={() => router.push('/campaigns')} />
+          <RoundBtn icon={Ico.bell} ariaLabel="알림" badge={notis.length > 0} onClick={() => setShowNoti(true)} />
         </div>
 
-        {loading ? (
-          /* 레이아웃 치수에 맞는 스켈레톤 — 콘텐츠 점프 방지 */
-          <>
-            <div style={{ padding: `0 ${T.pad}px` }}><div className="skel" style={{ height: 360, borderRadius: T.radius }} /></div>
-            <div style={{ display: 'flex', gap: 12, padding: `0 ${T.pad}px`, overflow: 'hidden' }}>
-              {[0, 1, 2].map(i => (
-                <div key={i} style={{ width: 168, flexShrink: 0 }}>
-                  <div className="skel" style={{ height: 130 }} />
-                  <div className="skel" style={{ height: 14, width: '70%', marginTop: 10, borderRadius: 6 }} />
-                  <div className="skel" style={{ height: 14, width: '45%', marginTop: 6, borderRadius: 6 }} />
-                </div>
-              ))}
-            </div>
-          </>
-        ) : loadError ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <p style={{ fontSize: 15, color: T.ink2, marginBottom: 14 }}>일시적인 오류가 발생했어요.</p>
-            <button type="button" onClick={() => { setLoading(true); fetchCampaigns().then(() => setLoading(false)) }}
-              style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: 100, padding: '11px 22px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              다시 시도
-            </button>
-          </div>
-        ) : !hero ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <p style={{ fontSize: 15, color: T.ink3 }}>모집중인 캠페인이 없어요.</p>
-          </div>
-        ) : (
-          <>
-            {/* 히어로 */}
-            <div style={{ padding: `0 ${T.pad}px` }}>
-              <Link href={`/campaign/${hero.id}`} style={{ textDecoration: 'none', display: 'block' }}>
-                <PhotoBlock cat={catKey(hero.category)} imageUrl={campaignImg(hero.id, hero.image_url)} radius={T.radius} style={{ height: 360, cursor: 'pointer' }}>
-                  <div style={{ position: 'absolute', inset: 0, padding: T.cardPad, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Pill bg="rgba(255,255,255,0.92)" ink={T.ink}>✦ 이주의 추천</Pill>
-                      {(() => { const d = applyDday(hero); return d.v !== null && d.v >= 0 && <Pill bg="rgba(0,0,0,0.32)" ink="#fff">{d.label} D-{d.v}</Pill> })()}
-                    </div>
-                    <div>
-                      <div style={{ color: 'rgba(255,255,255,0.85)', fontFamily: T.fontUI, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{hero.brands?.name} · {label(hero)}</div>
-                      <h2 style={{ margin: 0, fontFamily: T.fontUI, fontWeight: 700, fontSize: 26, lineHeight: 1.25, color: '#fff', letterSpacing: '-0.02em' }}>{hero.name}</h2>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
-                        <div>
-                          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11.5, fontFamily: T.fontUI, marginBottom: 2 }}>리워드</div>
-                          <div style={{ color: '#fff', fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 24, letterSpacing: '-0.02em' }}>{reward(hero) ? `₩${won(reward(hero))}` : (hero.fee || '협의')}</div>
-                        </div>
-                        {/* 카드 전체가 링크이므로 버튼 대신 시각적 라벨 */}
-                        <span style={{ background: '#fff', color: T.accent, fontFamily: T.fontUI, fontWeight: 700, fontSize: 14, padding: '13px 22px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>자세히 <Ico.chevR width="15" height="15" /></span>
-                      </div>
-                    </div>
+        {/* 타이틀 + 카운트 */}
+        <div style={{ padding: `4px ${T.pad}px 0`, display: 'flex', alignItems: 'baseline', gap: 7 }}>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', color: T.ink }}>캠페인</h1>
+          {!loading && <span style={{ fontSize: 14, fontWeight: 600, color: T.ink3 }}>{filtered.length}</span>}
+        </div>
+
+        {/* 카테고리 필터 */}
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: `0 ${T.pad}px`, scrollbarWidth: 'none' }}>
+          {CATEGORY_FILTERS.map(([l, key]) => {
+            const on = catFilter === key
+            return (
+              <button key={l} type="button" onClick={() => setCatFilter(key)} aria-pressed={on}
+                style={{ padding: '9px 16px', minHeight: 38, borderRadius: 999, whiteSpace: 'nowrap', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, letterSpacing: '-0.01em', cursor: 'pointer', background: on ? T.accent : T.surface, color: on ? T.accentInk : T.ink2, border: `1px solid ${on ? 'transparent' : T.line}`, flexShrink: 0 }}>
+                {l}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* 캠페인 리스트 */}
+        <div style={{ padding: `2px ${T.pad}px 0`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {loading ? (
+            /* 카드 치수에 맞는 스켈레톤 */
+            [0, 1].map(i => (
+              <div key={i} style={{ border: `1px solid ${T.line}`, borderRadius: 24, padding: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div className="skel" style={{ width: 40, height: 40, borderRadius: 13 }} />
+                  <div style={{ flex: 1 }}>
+                    <div className="skel" style={{ height: 13, width: '40%', borderRadius: 6 }} />
+                    <div className="skel" style={{ height: 11, width: '28%', borderRadius: 6, marginTop: 5 }} />
                   </div>
-                </PhotoBlock>
-              </Link>
+                </div>
+                <div className="skel" style={{ height: 170, borderRadius: 16 }} />
+                <div className="skel" style={{ height: 15, width: '65%', borderRadius: 6, marginTop: 12 }} />
+                <div className="skel" style={{ height: 12, width: '50%', borderRadius: 6, marginTop: 8 }} />
+              </div>
+            ))
+          ) : loadError ? (
+            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+              <p style={{ fontSize: 15, color: T.ink2, marginBottom: 14 }}>일시적인 오류가 발생했어요.</p>
+              <button type="button" onClick={() => { setLoading(true); fetchCampaigns().then(() => setLoading(false)) }}
+                style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: 100, padding: '11px 22px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                다시 시도
+              </button>
             </div>
-
-            {/* 가로 레일 */}
-            {rail.length > 0 && (
-              <div>
-                <div style={{ padding: `0 ${T.pad}px`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <h3 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 19, color: T.ink, letterSpacing: '-0.02em' }}>For You</h3>
-                  <Link href="/campaigns" style={{ fontFamily: T.fontUI, fontSize: 12.5, color: T.ink3, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2, textDecoration: 'none', padding: '12px 0 12px 12px' }}>전체보기 <Ico.chevR width="13" height="13" /></Link>
-                </div>
-                <div style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: `0 ${T.pad}px`, scrollbarWidth: 'none' }}>
-                  {rail.map((c) => (
-                    <Link key={c.id} href={`/campaign/${c.id}`} style={{ width: 168, flexShrink: 0, cursor: 'pointer', textDecoration: 'none' }}>
-                      <PhotoBlock cat={catKey(c.category)} monogram={mono(c)} imageUrl={campaignImg(c.id, c.image_url)} style={{ height: 130 }}>
-                        <div style={{ position: 'absolute', top: 10, left: 10 }}><Pill bg="rgba(255,255,255,0.92)" ink={T.ink} size={10.5}>{label(c)}</Pill></div>
-                      </PhotoBlock>
-                      <div style={{ padding: '10px 2px 0' }}>
-                        <div style={{ fontFamily: T.fontUI, fontSize: 11.5, color: T.ink3, fontWeight: 600 }}>{c.brands?.name}</div>
-                        <div style={{ fontFamily: T.fontUI, fontSize: 14, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', margin: '2px 0 6px', lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.name}</div>
-                        <div style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 16, color: T.ink }}>{reward(c) ? `₩${won(reward(c))}` : (c.fee || '협의')}</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+              <p style={{ fontSize: 15, color: T.ink3 }}>{catFilter ? '해당 카테고리의 캠페인이 없어요.' : '모집중인 캠페인이 없어요.'}</p>
+            </div>
+          ) : (
+            filtered.map(c => {
+              const d = applyDday(c)
+              const isLiked = liked.has(c.id)
+              return (
+                <div key={c.id} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 24, padding: 16, boxShadow: '0 1px 2px rgba(20,20,20,0.03)' }}>
+                  {/* 카드 헤더: 브랜드 + 적합도 + 하트 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <Monogram letter={mono(c)} cat={catKey(c.category)} size={40} radius={13} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.brands?.name}</div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11.5, color: T.ink3, fontWeight: 600, marginTop: 1 }}>
+                        <Ico.spark width="11" height="11" /> 추천 {matchScore(c, myCats)}%
                       </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+                    </div>
+                    <button type="button" onClick={() => toggleLike(c.id)}
+                      aria-label={isLiked ? '관심 캠페인 해제' : '관심 캠페인 추가'} aria-pressed={isLiked}
+                      style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: isLiked ? T.blushInk : T.ink3, flexShrink: 0 }}>
+                      <svg width="21" height="21" viewBox="0 0 24 24" fill={isLiked ? 'currentColor' : 'none'}><path d="M12 20s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7-2.7c0 4.9-7 9.7-7 9.7Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+                    </button>
+                  </div>
 
-            {/* 컴팩트 슬라이드 */}
-            {list.length > 0 && (
-              <div>
-                <div style={{ padding: `0 ${T.pad}px`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <h3 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 19, color: T.ink, letterSpacing: '-0.02em' }}>Just In</h3>
-                  <Link href="/campaigns" style={{ fontFamily: T.fontUI, fontSize: 12.5, color: T.ink3, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2, textDecoration: 'none', padding: '12px 0 12px 12px' }}>전체보기 <Ico.chevR width="13" height="13" /></Link>
-                </div>
-                <div style={{ display: 'flex', gap: 13, overflowX: 'auto', padding: `0 ${T.pad}px`, scrollbarWidth: 'none' }}>
-                  {list.map((c) => (
-                    <Link key={c.id} href={`/campaign/${c.id}`} style={{ width: 268, flexShrink: 0, cursor: 'pointer', textDecoration: 'none' }}>
-                      <PhotoBlock cat={catKey(c.category)} monogram={mono(c)} imageUrl={campaignImg(c.id, c.image_url)} radius={T.radiusSm} style={{ height: 150 }}>
-                        <div style={{ position: 'absolute', inset: 0, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <Pill bg="rgba(255,255,255,0.92)" ink={T.ink} size={10.5}>{label(c)}</Pill>
-                          {(() => { const d = applyDday(c); return d.v !== null && d.v >= 0 && <Pill bg="rgba(0,0,0,0.32)" ink="#fff" size={10.5}>{d.label} D-{d.v}</Pill> })()}
-                        </div>
-                      </PhotoBlock>
-                      <div style={{ padding: '10px 2px 0' }}>
-                        <div style={{ fontFamily: T.fontUI, fontSize: 11.5, color: T.ink3, fontWeight: 600 }}>{c.brands?.name}</div>
-                        <div style={{ fontFamily: T.fontUI, fontSize: 14.5, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', margin: '2px 0 6px', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{c.name}</div>
-                        <div style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 16, color: T.ink }}>{reward(c) ? `₩${won(reward(c))}` : (c.fee || '협의')}</div>
+                  {/* 사진 + 본문 (탭하면 상세) */}
+                  <Link href={`/campaign/${c.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+                    <PhotoBlock cat={catKey(c.category)} monogram={mono(c)} imageUrl={campaignImg(c.id, c.image_url)} radius={16} style={{ height: 172 }}>
+                      <div style={{ position: 'absolute', top: 10, left: 10 }}>
+                        <Pill bg="rgba(255,255,255,0.92)" ink={T.ink} size={10.5}>{label(c)}</Pill>
                       </div>
-                    </Link>
-                  ))}
+                    </PhotoBlock>
+                    <div style={{ padding: '12px 2px 0' }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.name}</div>
+                      {/* 메타: 리워드 · 마감 · 지원자 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8, color: T.ink2, fontSize: 12.5, fontWeight: 600 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4.5 }}>
+                          <Ico.won width="13" height="13" /> {reward(c) ? `${won(reward(c))}원` : (c.fee || '협의')}
+                        </span>
+                        {d !== null && d >= 0 && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4.5 }}>
+                            <Ico.clock width="13" height="13" /> D-{d === 0 ? 'day' : d}
+                          </span>
+                        )}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4.5 }}>
+                          <Ico.user width="13" height="13" /> 지원 {applyCount(c)}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              )
+            })
+          )}
+        </div>
       </div>
 
       {/* 알림 패널 */}
