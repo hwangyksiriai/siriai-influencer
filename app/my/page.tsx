@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -43,66 +43,92 @@ interface Settlement {
 
 const inp: React.CSSProperties = {
   width: '100%', background: T.surface2, border: `1px solid ${T.line}`,
-  borderRadius: T.radiusSm, padding: '11px 14px', fontSize: 14, color: T.ink,
+  borderRadius: T.radiusSm, padding: '11px 14px', fontSize: 16, color: T.ink,
   fontFamily: T.fontUI, outline: 'none', boxSizing: 'border-box',
 }
 const secBtn: React.CSSProperties = { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', padding: 0, fontSize: 14.5, fontWeight: 700, color: T.ink, cursor: 'pointer', fontFamily: T.fontUI }
 const secBody: React.CSSProperties = { paddingTop: 14 }
 const microLbl: React.CSSProperties = { fontFamily: T.fontUI, fontSize: 11.5, fontWeight: 600, color: T.ink3, display: 'block', marginBottom: 6 }
+// 로딩 스켈레톤 공통 스타일 (T.surface2 펄스)
+const skel: React.CSSProperties = { background: T.surface2, borderRadius: 10, animation: 'my-skel-pulse 1.4s ease-in-out infinite' }
 
 const statusLabel: Record<string, string> = { pending: '지급예정', paid: '지급완료', cancelled: '취소' }
 const statusColor: Record<string, string> = { pending: T.butterInk, paid: T.ok, cancelled: T.ink3 }
 const BANKS = ['카카오뱅크', '토스뱅크', '국민은행', '신한은행', '우리은행', '하나은행', '농협은행', '기업은행', 'SC제일은행', '씨티은행', '새마을금고', '우체국', '부산은행', '대구은행', '광주은행', '경남은행', '전북은행', '수협은행', '케이뱅크']
+
+// 분할 입력 자릿수 (자동 포커스 이동용)
+const PHONE_MAX = [3, 4, 4]
+const RRN_MAX = [6, 7]
 
 export default function MyPage() {
   const router = useRouter()
   const [inf, setInf] = useState<Influencer | null>(null)
   const [settlements, setSettlements] = useState<Settlement[]>([])
   const [tab, setTab] = useState<'profile' | 'settlement' | 'settings'>('profile')
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarMsg, setAvatarMsg] = useState('')
+  const [withdrawError, setWithdrawError] = useState('')
   const [rrn, setRrn] = useState('')
   const [openSec, setOpenSec] = useState<Record<string, boolean>>({ basic: true, rate: false, account: false })
   const toggleSec = (k: string) => setOpenSec(s => ({ ...s, [k]: !s[k] }))
+  // 분할 입력 자동 포커스용 ref
+  const phoneRefs = useRef<(HTMLInputElement | null)[]>([])
+  const rrnRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) { router.replace('/login'); return }
-      const uid = data.session.user.id
-      // 관리자 전용 항목(admin_memo·blacklisted 등)은 가져오지 않음
-      const { data: influencer } = await supabase.from('influencers')
-        .select('id, name, handle, followers, category, email, phone, bank_name, bank_account, account_holder, avatar_url, status, notify_kakao, notify_push, ig_feed_min, ig_feed_max, ig_reels_min, ig_reels_max, yt_shorts_min, yt_shorts_max, yt_video_min, yt_video_max')
-        .eq('id', uid).single()
-      if (influencer) setInf(influencer as Influencer)
-      const { data: sec } = await supabase.from('influencer_secure').select('rrn').eq('influencer_id', uid).limit(1)
-      if (sec && sec[0]) setRrn(sec[0].rrn || '')
-      const { data: setts } = await supabase
-        .from('settlements')
-        .select('*, submissions(applications(campaigns(name)))')
-        .eq('influencer_id', uid)
-        .order('created_at', { ascending: false })
-      setSettlements((setts as Settlement[]) || [])
-    })
-  }, [])
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.auth.getSession()
+    if (!data.session) { router.replace('/login'); return }
+    const uid = data.session.user.id
+    // 관리자 전용 항목(admin_memo·blacklisted 등)은 가져오지 않음
+    const { data: influencer, error: infError } = await supabase.from('influencers')
+      .select('id, name, handle, followers, category, email, phone, bank_name, bank_account, account_holder, avatar_url, status, notify_kakao, notify_push, ig_feed_min, ig_feed_max, ig_reels_min, ig_reels_max, yt_shorts_min, yt_shorts_max, yt_video_min, yt_video_max')
+      .eq('id', uid).single()
+    if (infError || !influencer) { setInf(null); setLoading(false); return }
+    setInf(influencer as Influencer)
+    const { data: sec } = await supabase.from('influencer_secure').select('rrn').eq('influencer_id', uid).limit(1)
+    if (sec && sec[0]) setRrn(sec[0].rrn || '')
+    const { data: setts } = await supabase
+      .from('settlements')
+      .select('*, submissions(applications(campaigns(name)))')
+      .eq('influencer_id', uid)
+      .order('created_at', { ascending: false })
+    setSettlements((setts as Settlement[]) || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
 
   const set = (k: string, v: any) => setInf(i => i ? { ...i, [k]: v } : i)
 
   async function uploadAvatar(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !inf) return
+    setAvatarMsg('')
+    // 이미지 타입 · 5MB 검증
+    if (!file.type.startsWith('image/')) { setAvatarMsg('이미지 파일만 업로드할 수 있어요.'); e.target.value = ''; return }
+    if (file.size > 5 * 1024 * 1024) { setAvatarMsg('5MB 이하의 이미지만 업로드할 수 있어요.'); e.target.value = ''; return }
+    setAvatarUploading(true)
     const ext = file.name.split('.').pop()
     const path = `avatars/${inf.id}-${Date.now()}.${ext}`
     const { error } = await supabase.storage.from('campaign-files').upload(path, file, { upsert: true })
-    if (error) { alert('사진 업로드 실패: ' + error.message); return }
+    if (error) { setAvatarUploading(false); setAvatarMsg('사진 업로드에 실패했어요. 다시 시도해 주세요.'); return }
     const { data } = supabase.storage.from('campaign-files').getPublicUrl(path)
+    const { error: updError } = await supabase.from('influencers').update({ avatar_url: data.publicUrl }).eq('id', inf.id)
+    setAvatarUploading(false)
+    if (updError) { setAvatarMsg('사진 저장에 실패했어요. 다시 시도해 주세요.'); return }
     set('avatar_url', data.publicUrl)
-    await supabase.from('influencers').update({ avatar_url: data.publicUrl }).eq('id', inf.id)
   }
 
   async function handleSave() {
     if (!inf) return
     setSaving(true)
-    await supabase.from('influencers').update({
+    setSaveError('')
+    const { error: updError } = await supabase.from('influencers').update({
       name: inf.name, handle: inf.handle, phone: inf.phone, avatar_url: inf.avatar_url,
       bank_name: inf.bank_name, bank_account: inf.bank_account, account_holder: inf.account_holder,
       ig_feed_min: inf.ig_feed_min, ig_feed_max: inf.ig_feed_max,
@@ -110,8 +136,9 @@ export default function MyPage() {
       yt_shorts_min: inf.yt_shorts_min, yt_shorts_max: inf.yt_shorts_max,
       yt_video_min: inf.yt_video_min, yt_video_max: inf.yt_video_max,
     }).eq('id', inf.id)
-    await supabase.from('influencer_secure').upsert({ influencer_id: inf.id, rrn }, { onConflict: 'influencer_id' })
+    const { error: secError } = await supabase.from('influencer_secure').upsert({ influencer_id: inf.id, rrn }, { onConflict: 'influencer_id' })
     setSaving(false)
+    if (updError || secError) { setSaveError('저장에 실패했어요. 다시 시도해 주세요.'); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -123,14 +150,18 @@ export default function MyPage() {
 
   async function toggleNotify(key: 'notify_kakao' | 'notify_push', val: boolean) {
     if (!inf) return
+    const prev = (inf as any)[key]
     set(key, val)
-    await supabase.from('influencers').update({ [key]: val }).eq('id', inf.id)
+    const { error } = await supabase.from('influencers').update({ [key]: val }).eq('id', inf.id)
+    if (error) set(key, prev) // 실패 시 롤백
   }
 
   async function handleWithdraw() {
     if (!inf) return
     if (!confirm('정말 탈퇴하시겠어요? 진행 중인 캠페인이나 미지급 정산이 있으면 먼저 처리해 주세요.')) return
-    await supabase.from('influencers').update({ status: 'withdrawn' }).eq('id', inf.id)
+    setWithdrawError('')
+    const { error } = await supabase.from('influencers').update({ status: 'withdrawn' }).eq('id', inf.id)
+    if (error) { setWithdrawError('탈퇴 처리에 실패했어요. 잠시 후 다시 시도해 주세요.'); return }
     await supabase.auth.signOut()
     router.replace('/login')
   }
@@ -138,19 +169,62 @@ export default function MyPage() {
   const totalPending = settlements.filter(s => s.status === 'pending').reduce((sum, s) => sum + (s.amount || 0), 0)
   const totalPaid = settlements.filter(s => s.status === 'paid').reduce((sum, s) => sum + (s.amount || 0), 0)
 
-  if (!inf) return <div style={{ minHeight: '100vh', background: T.bg }}><BottomNav /></div>
+  // 로딩 중: 프로필 카드 모양 스켈레톤
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120, maxWidth: 480, margin: '0 auto' }}>
+      <style>{'@keyframes my-skel-pulse{0%,100%{opacity:1}50%{opacity:.45}}'}</style>
+      <div style={{ padding: '20px 20px 0' }}>
+        <div style={{ ...skel, width: 64, height: 30, marginBottom: 16 }} />
+        <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radius, padding: T.cardPad, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ ...skel, width: 66, height: 66, borderRadius: '50%', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ ...skel, width: '55%', height: 20, marginBottom: 8 }} />
+              <div style={{ ...skel, width: '38%', height: 13 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 18, paddingTop: 16, borderTop: `1px solid ${T.line}` }}>
+            {[0, 1, 2].map(i => <div key={i} style={{ ...skel, flex: 1, height: 36 }} />)}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[0, 1, 2].map(i => <div key={i} style={{ ...skel, width: 84, height: 34, borderRadius: 100 }} />)}
+        </div>
+      </div>
+      <BottomNav />
+    </div>
+  )
+
+  // 조회 실패 / 데이터 없음
+  if (!inf) return (
+    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120, maxWidth: 480, margin: '0 auto' }}>
+      <div style={{ padding: '90px 20px', textAlign: 'center' }}>
+        <p style={{ fontFamily: T.fontUI, fontSize: 14.5, color: T.ink2, marginBottom: 14 }}>프로필을 불러오지 못했어요</p>
+        <button onClick={load}
+          style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: T.radiusSm, padding: '12px 28px', fontSize: 14, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer' }}>
+          다시 시도
+        </button>
+      </div>
+      <BottomNav />
+    </div>
+  )
 
   const phoneParts = (inf.phone || '').split('-')
   const setPhonePart = (idx: number, val: string) => {
     const p = (inf.phone || '').split('-'); while (p.length < 3) p.push('')
-    p[idx] = val.replace(/[^0-9]/g, '')
+    const cleaned = val.replace(/[^0-9]/g, '')
+    p[idx] = cleaned
     set('phone', p.join('-'))
+    // 자릿수 채우면 다음 칸 자동 포커스
+    if (cleaned.length >= PHONE_MAX[idx] && idx < PHONE_MAX.length - 1) phoneRefs.current[idx + 1]?.focus()
   }
   const rrnParts = (rrn || '').split('-')
   const setRrnPart = (idx: number, val: string) => {
     const p = (rrn || '').split('-'); while (p.length < 2) p.push('')
-    p[idx] = val.replace(/[^0-9]/g, '')
+    const cleaned = val.replace(/[^0-9]/g, '')
+    p[idx] = cleaned
     setRrn(p.join('-'))
+    if (cleaned.length >= RRN_MAX[idx] && idx < RRN_MAX.length - 1) rrnRefs.current[idx + 1]?.focus()
   }
 
   const chevron = (open: boolean) => (
@@ -158,19 +232,18 @@ export default function MyPage() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120 }}>
+    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120, maxWidth: 480, margin: '0 auto' }}>
       {/* 헤더 */}
       <div style={{ padding: '20px 20px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h1 style={{ fontSize: 30, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink, lineHeight: 1.04 }}>마이</h1>
-          <button onClick={handleLogout} style={{ background: 'none', border: 'none', fontSize: 12, color: T.ink3, cursor: 'pointer' }}>로그아웃</button>
         </div>
 
         {/* 프로필 카드 */}
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <label style={{ cursor: 'pointer', flexShrink: 0 }} title="프로필 사진 변경">
-              <input type="file" accept="image/*" onChange={uploadAvatar} style={{ display: 'none' }} />
+            <label style={{ cursor: 'pointer', flexShrink: 0, position: 'relative', display: 'block' }} title="프로필 사진 변경">
+              <input type="file" accept="image/*" onChange={uploadAvatar} disabled={avatarUploading} style={{ display: 'none' }} />
               <Avatar
                 tint={T.blush}
                 size={66}
@@ -179,6 +252,11 @@ export default function MyPage() {
                   ? <img src={inf.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : '🙆‍♀️'}
               />
+              {avatarUploading && (
+                <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(26,25,22,.38)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span className="au-spinner" style={{ margin: 0 }} />
+                </span>
+              )}
             </label>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -190,6 +268,7 @@ export default function MyPage() {
               <div style={{ fontFamily: T.fontUI, fontSize: 13, color: T.ink2, marginTop: 3 }}>@{inf.handle}</div>
             </div>
           </div>
+          {avatarMsg && <p className="au-error" style={{ fontSize: 11.5, color: T.danger, marginTop: 8 }}>{avatarMsg}</p>}
           <div style={{ display: 'flex', marginTop: 18, paddingTop: 16, borderTop: `1px solid ${T.line}` }}>
             {[
               ['팔로워', inf.followers?.toLocaleString() ?? '0'],
@@ -217,7 +296,7 @@ export default function MyPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* 섹션 1: 기본 정보 */}
             <Card>
-              <button type="button" style={secBtn} onClick={() => toggleSec('basic')}>
+              <button type="button" style={secBtn} aria-expanded={openSec.basic} onClick={() => toggleSec('basic')}>
                 <span>기본 정보</span>{chevron(openSec.basic)}
               </button>
               {openSec.basic && (
@@ -225,7 +304,7 @@ export default function MyPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                     <div>
                       <label style={microLbl}>이름</label>
-                      <input style={inp} type="text" value={inf.name || ''} onChange={e => set('name', e.target.value)} />
+                      <input style={inp} type="text" autoComplete="name" value={inf.name || ''} onChange={e => set('name', e.target.value)} />
                     </div>
                     <div>
                       <label style={microLbl}>인스타 핸들</label>
@@ -235,11 +314,11 @@ export default function MyPage() {
                   <div>
                     <label style={microLbl}>연락처</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={3} placeholder="010" value={phoneParts[0] || ''} onChange={e => setPhonePart(0, e.target.value)} />
+                      <input ref={el => { phoneRefs.current[0] = el }} style={{ ...inp, textAlign: 'center' }} inputMode="numeric" autoComplete="tel" maxLength={3} placeholder="010" value={phoneParts[0] || ''} onChange={e => setPhonePart(0, e.target.value)} />
                       <span style={{ color: T.ink3 }}>-</span>
-                      <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={4} placeholder="0000" value={phoneParts[1] || ''} onChange={e => setPhonePart(1, e.target.value)} />
+                      <input ref={el => { phoneRefs.current[1] = el }} style={{ ...inp, textAlign: 'center' }} inputMode="numeric" autoComplete="tel" maxLength={4} placeholder="0000" value={phoneParts[1] || ''} onChange={e => setPhonePart(1, e.target.value)} />
                       <span style={{ color: T.ink3 }}>-</span>
-                      <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={4} placeholder="0000" value={phoneParts[2] || ''} onChange={e => setPhonePart(2, e.target.value)} />
+                      <input ref={el => { phoneRefs.current[2] = el }} style={{ ...inp, textAlign: 'center' }} inputMode="numeric" autoComplete="tel" maxLength={4} placeholder="0000" value={phoneParts[2] || ''} onChange={e => setPhonePart(2, e.target.value)} />
                     </div>
                   </div>
                 </div>
@@ -248,7 +327,7 @@ export default function MyPage() {
 
             {/* 섹션 2: 협업 단가 */}
             <Card>
-              <button type="button" style={secBtn} onClick={() => toggleSec('rate')}>
+              <button type="button" style={secBtn} aria-expanded={openSec.rate} onClick={() => toggleSec('rate')}>
                 <span>협업 단가</span>{chevron(openSec.rate)}
               </button>
               {openSec.rate && (
@@ -276,7 +355,7 @@ export default function MyPage() {
 
             {/* 섹션 3: 정산 계좌 */}
             <Card>
-              <button type="button" style={secBtn} onClick={() => toggleSec('account')}>
+              <button type="button" style={secBtn} aria-expanded={openSec.account} onClick={() => toggleSec('account')}>
                 <span>정산 계좌 · 세금정보</span>{chevron(openSec.account)}
               </button>
               {openSec.account && (
@@ -302,9 +381,9 @@ export default function MyPage() {
                     <div>
                       <label style={microLbl}>주민등록번호 (정산 세금 신고용)</label>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" maxLength={6} placeholder="앞 6자리" value={rrnParts[0] || ''} onChange={e => setRrnPart(0, e.target.value)} />
+                        <input ref={el => { rrnRefs.current[0] = el }} style={{ ...inp, textAlign: 'center' }} inputMode="numeric" autoComplete="off" maxLength={6} placeholder="앞 6자리" value={rrnParts[0] || ''} onChange={e => setRrnPart(0, e.target.value)} />
                         <span style={{ color: T.ink3 }}>-</span>
-                        <input style={{ ...inp, textAlign: 'center' }} inputMode="numeric" type="password" maxLength={7} placeholder="뒤 7자리" value={rrnParts[1] || ''} onChange={e => setRrnPart(1, e.target.value)} />
+                        <input ref={el => { rrnRefs.current[1] = el }} style={{ ...inp, textAlign: 'center' }} inputMode="numeric" type="password" autoComplete="off" maxLength={7} placeholder="뒤 7자리" value={rrnParts[1] || ''} onChange={e => setRrnPart(1, e.target.value)} />
                       </div>
                       <p style={{ fontSize: 11, color: T.ink3, marginTop: 5, lineHeight: 1.5 }}>🔒 정산 세금 신고에만 사용하며, 본인과 정산 담당자만 볼 수 있어요.</p>
                     </div>
@@ -313,6 +392,7 @@ export default function MyPage() {
               )}
             </Card>
 
+            {saveError && <p className="au-error" style={{ fontSize: 12.5, color: T.danger, textAlign: 'center', marginTop: 4 }}>{saveError}</p>}
             <button onClick={handleSave} disabled={saving}
               style={{ width: '100%', background: T.accent, color: T.accentInk, border: 'none', borderRadius: T.radiusSm, padding: '16px', fontSize: 15, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer', opacity: saving ? .6 : 1, marginTop: 4 }}>
               {saved ? '저장됐어요 ✓' : saving ? '저장 중...' : '저장하기'}
@@ -397,7 +477,8 @@ export default function MyPage() {
                   return (
                     <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 0', borderTop: i ? `1px solid ${T.line}` : 'none' }}>
                       <span style={{ fontSize: 14, color: T.ink }}>{l}</span>
-                      <button onClick={() => toggleNotify(k, !on)} style={{ width: 44, height: 26, borderRadius: 100, border: 'none', cursor: 'pointer', background: on ? T.accent : T.line, position: 'relative', transition: 'background .2s' }}>
+                      <button onClick={() => toggleNotify(k, !on)} role="switch" aria-checked={on} aria-label={l}
+                        style={{ width: 44, height: 26, borderRadius: 100, border: 'none', cursor: 'pointer', background: on ? T.accent : T.line, position: 'relative', transition: 'background .2s' }}>
                         <span style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
                       </button>
                     </div>
@@ -411,6 +492,7 @@ export default function MyPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
               <button onClick={handleLogout} style={{ width: '100%', background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, padding: '14px', fontSize: 14, fontWeight: 600, fontFamily: T.fontUI, cursor: 'pointer' }}>로그아웃</button>
               <button onClick={handleWithdraw} style={{ width: '100%', background: 'none', color: T.ink3, border: 'none', padding: '8px', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>회원 탈퇴</button>
+              {withdrawError && <p className="au-error" style={{ fontSize: 12, color: T.danger, textAlign: 'center' }}>{withdrawError}</p>}
             </div>
           </div>
         )}

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 import { T, catKey } from '@/lib/theme'
-import { Ico, Card, Monogram, IconBtn, AppHeader } from '@/components/ui'
+import { Ico, Card, Monogram, AppHeader } from '@/components/ui'
 
 interface Application {
   id: string
@@ -20,6 +20,9 @@ interface Submission {
   verified: boolean
   applications: { campaigns: { name: string } } | null
 }
+
+// 인스타그램·유튜브 링크 형식 검증
+const LINK_PATTERN = /^https?:\/\/(www\.)?(instagram\.com|youtu\.be|youtube\.com)\//i
 
 // 로컬 기준 오늘 날짜 (YYYY-MM-DD)
 function todayStr() {
@@ -38,14 +41,30 @@ export default function UploadPage() {
   const [confirmTag, setConfirmTag] = useState(false)
   const [confirmCollab, setConfirmCollab] = useState(false)
   const [uid, setUid] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [loadError, setLoadError] = useState(false)
+  const [focusedCheck, setFocusedCheck] = useState<string | null>(null)
 
   async function loadSubs(userId: string) {
-    const { data: submissions } = await supabase
+    const { data: submissions, error } = await supabase
       .from('submissions')
       .select('id, link, submitted_at, verified, applications!inner(influencer_id, campaigns(name))')
       .eq('applications.influencer_id', userId)
       .order('submitted_at', { ascending: false })
+    if (error) return // 실패 시 기존 내역 유지
     setSubs((submissions as unknown as Submission[]) || [])
+  }
+
+  async function loadApps(userId: string) {
+    const { data: applications, error } = await supabase
+      .from('applications')
+      .select('id, upload_end_override, campaigns(name, upload_end, collab_required)')
+      .eq('influencer_id', userId)
+      .eq('status', 'in_progress')
+    if (error) { setLoadError(true); return } // 실패 시 기존 상태 유지 + 에러 표시
+    setLoadError(false)
+    setApps((applications as unknown as Application[]) || [])
+    if (applications?.length) setSelectedApp(prev => prev || applications[0].id)
   }
 
   useEffect(() => {
@@ -53,13 +72,7 @@ export default function UploadPage() {
       if (!data.session) { router.replace('/login'); return }
       const userId = data.session.user.id
       setUid(userId)
-      const { data: applications } = await supabase
-        .from('applications')
-        .select('id, upload_end_override, campaigns(name, upload_end, collab_required)')
-        .eq('influencer_id', userId)
-        .eq('status', 'in_progress')
-      setApps((applications as unknown as Application[]) || [])
-      if (applications?.length) setSelectedApp(applications[0].id)
+      await loadApps(userId)
       await loadSubs(userId)
     })
   }, [])
@@ -70,7 +83,8 @@ export default function UploadPage() {
   const uploadEnd = selected?.upload_end_override || selected?.campaigns?.upload_end || ''
   // #17 업로드 마감일이 지나면 업로드 불가
   const expired = !!uploadEnd && todayStr() > uploadEnd
-  const canSubmit = !expired && !!link.trim() && !!selectedApp && confirmTag && (!collabRequired || confirmCollab)
+  const linkValid = LINK_PATTERN.test(link.trim())
+  const canSubmit = !expired && !!link.trim() && linkValid && !!selectedApp && confirmTag && (!collabRequired || confirmCollab)
 
   function isExpired(a: Application) {
     const e = a.upload_end_override || a.campaigns?.upload_end
@@ -81,12 +95,18 @@ export default function UploadPage() {
     e.preventDefault()
     if (!canSubmit) return
     setSubmitting(true)
-    await supabase.from('submissions').insert([{
+    setSubmitError('')
+    const { error } = await supabase.from('submissions').insert([{
       application_id: selectedApp,
       link: link.trim(),
       submitted_at: new Date().toISOString(),
       verified: false,
     }])
+    if (error) {
+      setSubmitting(false)
+      setSubmitError('등록에 실패했어요. 다시 시도해 주세요.')
+      return
+    }
     setSubmitting(false)
     setDone(true)
     if (uid) loadSubs(uid)
@@ -106,10 +126,23 @@ export default function UploadPage() {
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, paddingBottom: 120 }}>
       <div style={{ maxWidth: 480, margin: '0 auto' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 20 }}>
-          <AppHeader kicker="콘텐츠 제출" title="Upload Studio" right={<IconBtn icon={Ico.clock} />} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 'max(20px, env(safe-area-inset-top))' }}>
+          <AppHeader kicker="콘텐츠 제출" title="Upload Studio" />
 
-          {done ? (
+          {loadError ? (
+            /* 데이터 조회 실패 — 빈 상태와 분리된 에러 화면 */
+            <div style={{ padding: `8px ${T.pad}px` }}>
+              <Card style={{ textAlign: 'center', padding: '40px 24px' }}>
+                <p style={{ fontSize: 32, marginBottom: 12 }}>⚠️</p>
+                <p style={{ fontSize: 15, fontWeight: 700, color: T.ink, marginBottom: 6 }}>일시적인 오류가 발생했어요</p>
+                <p style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6, marginBottom: 22 }}>네트워크 상태를 확인한 뒤<br />다시 시도해 주세요.</p>
+                <button type="button" onClick={() => { if (uid) { loadApps(uid); loadSubs(uid) } }}
+                  style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: 100, padding: '12px 28px', fontSize: 14, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer' }}>
+                  다시 시도
+                </button>
+              </Card>
+            </div>
+          ) : done ? (
             /* 등록 완료 화면 */
             <div style={{ padding: `8px ${T.pad}px` }}>
               <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
@@ -135,8 +168,9 @@ export default function UploadPage() {
                     ) : (
                       <>
                         <div style={{ fontFamily: T.fontUI, fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedName}</div>
-                        <select value={selectedApp} onChange={e => setSelectedApp(e.target.value)} aria-label="캠페인 선택"
-                          style={{ marginTop: 4, maxWidth: '100%', background: T.surface, border: `1px solid ${T.line}`, borderRadius: 999, padding: '5px 11px', fontSize: 12, color: T.ink2, fontFamily: T.fontUI, fontWeight: 600, outline: 'none', appearance: 'none', cursor: 'pointer' }}>
+                        {/* au-input: globals.css 의 ▾ 배경 화살표 사용 (background 단축속성 대신 backgroundColor 로 화살표 보존) */}
+                        <select value={selectedApp} onChange={e => setSelectedApp(e.target.value)} aria-label="캠페인 선택" className="au-input"
+                          style={{ marginTop: 6, maxWidth: '100%', minHeight: 44, backgroundColor: T.surface, border: `1px solid ${T.line}`, borderRadius: 999, padding: '10px 38px 10px 14px', fontSize: 16, color: T.ink2, fontFamily: T.fontUI, fontWeight: 600, outline: 'none', appearance: 'none', cursor: 'pointer' }}>
                           {apps.map(a => (
                             <option key={a.id} value={a.id}>{a.campaigns?.name}{isExpired(a) ? ' (마감)' : ''}</option>
                           ))}
@@ -169,11 +203,16 @@ export default function UploadPage() {
                   <div style={{ padding: `0 ${T.pad}px` }}>
                     <div style={{ fontFamily: T.fontUI, fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 10 }}>콘텐츠 링크</div>
                     <Card style={{ padding: 16 }}>
-                      <textarea value={link} onChange={e => setLink(e.target.value)}
+                      <textarea value={link} onChange={e => { setLink(e.target.value); if (submitError) setSubmitError('') }}
                         placeholder="인스타그램 또는 유튜브 링크를 입력해 주세요."
                         rows={3}
-                        style={{ width: '100%', border: 'none', outline: 'none', fontSize: 15, fontFamily: T.fontUI, color: T.ink, resize: 'none', background: 'transparent', lineHeight: 1.55 }} />
+                        inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                        style={{ width: '100%', border: 'none', outline: 'none', fontSize: 16, fontFamily: T.fontUI, color: T.ink, resize: 'none', background: 'transparent', lineHeight: 1.55 }} />
                     </Card>
+                    {/* 링크 형식 실시간 검증 */}
+                    {!!link.trim() && !linkValid && (
+                      <p style={{ fontSize: 12.5, color: T.danger, margin: '8px 2px 0' }}>인스타그램 또는 유튜브 링크 형식이 아니에요</p>
+                    )}
                   </div>
 
                   {/* 업로드 전 확인 (#21) — 가이드라인 체크 비주얼 + 실제 체크박스 */}
@@ -186,8 +225,10 @@ export default function UploadPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {checks.map(c => (
                           <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                            <input type="checkbox" checked={c.checked} onChange={c.toggle} style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
-                            <span style={{ width: 20, height: 20, borderRadius: 999, flexShrink: 0, background: c.checked ? T.sage : T.surface, color: T.sageInk, border: c.checked ? 'none' : `1.5px solid ${T.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <input type="checkbox" checked={c.checked} onChange={c.toggle}
+                              onFocus={() => setFocusedCheck(c.key)} onBlur={() => setFocusedCheck(null)}
+                              style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+                            <span style={{ width: 20, height: 20, borderRadius: 999, flexShrink: 0, background: c.checked ? T.sage : T.surface, color: T.sageInk, border: c.checked ? 'none' : `1.5px solid ${T.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: focusedCheck === c.key ? '0 0 0 3.5px rgba(26,25,22,0.14)' : 'none', transition: 'box-shadow .15s' }}>
                               {c.checked && <Ico.check width="13" height="13" />}
                             </span>
                             <span style={{ fontFamily: T.fontUI, fontSize: 13.5, color: c.checked ? T.ink2 : T.ink, textDecoration: c.checked ? 'line-through' : 'none' }}>{c.label}</span>
@@ -203,6 +244,10 @@ export default function UploadPage() {
                       style={{ width: '100%', border: 'none', background: canSubmit ? T.accent : T.surface2, color: canSubmit ? T.accentInk : T.ink3, fontFamily: T.fontUI, fontWeight: 700, fontSize: 16, padding: '17px', borderRadius: T.radiusSm, cursor: canSubmit && !submitting ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background .2s' }}>
                       <Ico.upload width="20" height="20" /> {submitting ? '등록 중...' : '등록하기'}
                     </button>
+                    {/* 등록 실패 인라인 에러 */}
+                    {!!submitError && (
+                      <p className="au-error" style={{ fontSize: 13, fontWeight: 600, color: T.danger, textAlign: 'center', margin: '10px 0 0' }}>{submitError}</p>
+                    )}
                   </div>
                 </>
               )}

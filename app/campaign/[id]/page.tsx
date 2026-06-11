@@ -40,6 +40,7 @@ interface Campaign {
   timeline_apply_end: string
   timeline_selection_date: string
   timeline_shipping_date: string
+  recruitment_status: string
   brands: { name: string }
 }
 
@@ -62,6 +63,9 @@ export default function CampaignDetailPage() {
   const [alreadyApplied, setAlreadyApplied] = useState(false)
   const [applySuccess, setApplySuccess] = useState(false)
   const [copied, setCopied] = useState('')
+  const [copyFail, setCopyFail] = useState('')          // 복사 실패한 항목 키
+  const [applyError, setApplyError] = useState('')      // 신청 실패 인라인 에러
+  const [postcodeMsg, setPostcodeMsg] = useState('')    // 주소 검색 로딩 안내 (alert 대체)
 
   useEffect(() => {
     supabase.from('campaigns').select('*, brands(name)').eq('id', id).single().then(({ data }) => {
@@ -86,44 +90,113 @@ export default function CampaignDetailPage() {
     document.body.appendChild(s)
   }, [])
 
+  // 시트/모달 열림 시 배경 스크롤 잠금, 닫히면 복원
+  useEffect(() => {
+    if (showApply || applySuccess) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [showApply, applySuccess])
+
+  // Escape 로 시트/모달 닫기 (신청 진행 중에는 무시)
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      if (applying) return
+      if (showApply) setShowApply(false)
+      else if (applySuccess) setApplySuccess(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showApply, applySuccess, applying])
+
   function openPostcode() {
     const daum = (window as unknown as { daum?: { Postcode?: new (o: object) => { open: () => void } } }).daum
-    if (!daum || !daum.Postcode) { alert('주소 검색을 불러오는 중이에요. 잠시 후 다시 시도해 주세요.'); return }
+    if (!daum || !daum.Postcode) {
+      // alert 대신 시트 내 인라인 안내
+      setPostcodeMsg('주소 검색을 불러오는 중이에요. 잠시 후 다시 시도해 주세요.')
+      setTimeout(() => setPostcodeMsg(''), 2500)
+      return
+    }
+    setPostcodeMsg('')
     new daum.Postcode({ oncomplete: (d: { roadAddress?: string; jibunAddress?: string; address?: string }) => setAddress(d.roadAddress || d.jibunAddress || d.address || '') }).open()
   }
 
   async function handleApply() {
-    if (!address.trim()) return
+    if (!address.trim() || !costAgree) return
     setApplying(true)
-    await supabase.from('applications').insert([{
+    setApplyError('')
+    const { error: insertError } = await supabase.from('applications').insert([{
       campaign_id: id,
       influencer_id: userId,
       address, address_detail: addressDetail, request,
       cost_agreement: costAgree,
-      proposed_fee: campaign.fee_amount || null,
+      proposed_fee: campaign?.fee_amount || null,
       status: 'pending',
     }])
+    if (insertError) {
+      setApplying(false)
+      setApplyError('신청에 실패했어요. 잠시 후 다시 시도해 주세요.')
+      return
+    }
     const fullAddr = `${address}${addressDetail ? ' ' + addressDetail : ''}`.trim()
-    if (fullAddr) await supabase.from('influencers').update({ address: fullAddr }).eq('id', userId)
+    if (fullAddr) {
+      const { error: addrError } = await supabase.from('influencers').update({ address: fullAddr }).eq('id', userId)
+      if (addrError) {
+        setApplying(false)
+        setApplyError('신청에 실패했어요. 잠시 후 다시 시도해 주세요.')
+        return
+      }
+    }
+    // 성공 시에만 완료 상태로 전환
     setApplying(false)
     setShowApply(false)
     setAlreadyApplied(true)
     setApplySuccess(true)
   }
 
-  function copy(text: string, key: string) {
-    navigator.clipboard.writeText(text)
-    setCopied(key)
-    setTimeout(() => setCopied(''), 1500)
+  async function copy(text: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(key)
+      setCopyFail('')
+      setTimeout(() => setCopied(''), 1500)
+    } catch {
+      // 복사 실패 시 성공 표시 없이 인라인 안내만
+      setCopyFail(key)
+      setTimeout(() => setCopyFail(''), 2000)
+    }
   }
 
   if (loading) return <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: T.ink3 }}>불러오는 중...</p></div>
-  if (!campaign) return null
+  // 캠페인을 못 찾은 경우 백지 대신 안내 화면
+  if (!campaign) return (
+    <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+      <p style={{ fontSize: 40, marginBottom: 14 }}>🔍</p>
+      <h2 style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 600, color: T.ink, marginBottom: 8, letterSpacing: '-0.02em' }}>캠페인을 찾을 수 없어요</h2>
+      <p style={{ fontSize: 14, color: T.ink2, lineHeight: 1.6, marginBottom: 24 }}>삭제되었거나 더 이상 공개되지 않는 캠페인이에요.</p>
+      <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 320 }}>
+        <button onClick={() => router.back()}
+          style={{ flex: 1, background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>뒤로가기</button>
+        <button onClick={() => router.replace('/home')}
+          style={{ flex: 1, background: T.accent, color: T.accentInk, border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>홈으로</button>
+      </div>
+    </div>
+  )
 
   const k = catKey(campaign.category)
   const [catLabel, catBg, catInk] = CAT[k] || CAT.default
   const mono = (campaign.brands?.name || '?').charAt(0)
   const reward = campaign.fee_amount || campaign.product_value || 0
+
+  // 모집 마감 판정: 상태가 open 이 아니거나, 신청 마감일이 오늘(로컬 날짜) 이전이면 마감
+  const now = new Date()
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const recruitClosed =
+    (campaign.recruitment_status != null && campaign.recruitment_status !== 'open') ||
+    (!!campaign.timeline_apply_end && campaign.timeline_apply_end.slice(0, 10) < todayStr)
 
   const products = (campaign.products && campaign.products.length)
     ? campaign.products
@@ -135,7 +208,7 @@ export default function CampaignDetailPage() {
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, color: T.ink, paddingBottom: 110 }}>
       {/* 헤더 */}
-      <div style={{ position: 'sticky', top: 0, background: T.surface, zIndex: 10, borderBottom: `1px solid ${T.line}`, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ position: 'sticky', top: 0, background: T.surface, zIndex: 10, borderBottom: `1px solid ${T.line}`, padding: '14px 16px', paddingTop: 'max(14px, env(safe-area-inset-top))', display: 'flex', alignItems: 'center', gap: 10 }}>
         <button onClick={() => router.back()} aria-label="뒤로" style={{ width: 40, height: 40, borderRadius: 12, border: `1px solid ${T.line}`, background: T.surface, color: T.ink, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Ico.back width="20" height="20" />
         </button>
@@ -143,7 +216,9 @@ export default function CampaignDetailPage() {
 
       {/* 히어로 */}
       <div style={{ position: 'relative', width: '100%', aspectRatio: '4/3', background: PHOTO[k] || PHOTO.default }}>
-        <img src={campaignImg(campaign.id, campaign.image_url || campaign.product_photo_url || products[0]?.photo_url)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img src={campaignImg(campaign.id, campaign.image_url || campaign.product_photo_url || products[0]?.photo_url)} alt="" loading="lazy" decoding="async"
+          onError={e => { e.currentTarget.style.display = 'none' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(0,0,0,0.04) 70%, rgba(0,0,0,0.12))' }} />
       </div>
 
@@ -269,6 +344,7 @@ export default function CampaignDetailPage() {
               <div>
                 <p style={{ fontSize: 11, color: T.ink3, marginBottom: 4 }}>공동작업자 계정{collabs.length > 1 ? ` ${i + 1}` : ''}</p>
                 <p style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{h}</p>
+                {copyFail === 'collab' + i && <p style={{ fontSize: 11, color: T.danger, marginTop: 4 }}>복사에 실패했어요</p>}
               </div>
               <button onClick={() => copy(h, 'collab' + i)}
                 style={{ background: copied === 'collab' + i ? T.accent : T.surface, color: copied === 'collab' + i ? T.accentInk : T.ink, border: `1px solid ${T.line}`, borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .2s' }}>
@@ -287,6 +363,7 @@ export default function CampaignDetailPage() {
               <div style={{ flex: 1, marginRight: 10 }}>
                 <p style={{ fontSize: 11, color: T.ink3, marginBottom: 4 }}>필수 해시태그</p>
                 <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>{campaign.hashtags}</p>
+                {copyFail === 'hash' && <p style={{ fontSize: 11, color: T.danger, marginTop: 4 }}>복사에 실패했어요</p>}
               </div>
               <button onClick={() => copy(campaign.hashtags, 'hash')}
                 style={{ background: copied === 'hash' ? T.accent : T.surface, color: copied === 'hash' ? T.accentInk : T.ink, border: `1px solid ${T.line}`, borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .2s', flexShrink: 0 }}>
@@ -297,31 +374,44 @@ export default function CampaignDetailPage() {
         </div>
       )}
 
-      {/* 신청 버튼 */}
+      {/* 신청 버튼 — 모집 마감/신청 완료 시 비활성 */}
       <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: T.surface, borderTop: `1px solid ${T.line}`, padding: '12px 20px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
-        <button onClick={() => !alreadyApplied && setShowApply(true)} disabled={alreadyApplied}
-          style={{ width: '100%', background: alreadyApplied ? T.surface2 : T.accent, color: alreadyApplied ? T.ink3 : T.accentInk, border: 'none', borderRadius: 16, padding: '15px', fontSize: 15, fontWeight: 700, cursor: alreadyApplied ? 'default' : 'pointer' }}>
-          {alreadyApplied ? '신청 완료' : '캠페인 지원하기'}
+        <button
+          onClick={() => { if (!alreadyApplied && !recruitClosed) { setApplyError(''); setShowApply(true) } }}
+          disabled={alreadyApplied || recruitClosed}
+          style={{ width: '100%', background: (alreadyApplied || recruitClosed) ? T.surface2 : T.accent, color: (alreadyApplied || recruitClosed) ? T.ink3 : T.accentInk, border: 'none', borderRadius: 16, padding: '15px', fontSize: 15, fontWeight: 700, cursor: (alreadyApplied || recruitClosed) ? 'default' : 'pointer' }}>
+          {alreadyApplied ? '신청 완료' : recruitClosed ? '모집 마감' : '캠페인 지원하기'}
         </button>
       </div>
 
-      {/* 신청 모달 */}
+      {/* 신청 바텀시트 */}
       {showApply && (
-        <div onClick={() => setShowApply(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', maxWidth: 480, left: '50%', transform: 'translateX(-50%)' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: T.surface, borderRadius: '26px 26px 0 0', padding: '24px 20px 32px', width: '100%' }}>
+        <div onClick={() => { if (!applying) setShowApply(false) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', maxWidth: 480, left: '50%', transform: 'translateX(-50%)' }}>
+          <div onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="캠페인 지원"
+            style={{ background: T.surface, borderRadius: '26px 26px 0 0', padding: '24px 20px 32px', width: '100%', maxHeight: '85dvh', overflowY: 'auto' }}>
             <div style={{ width: 40, height: 4, background: T.line, borderRadius: 2, margin: '0 auto 20px' }} />
             <h3 style={{ fontFamily: T.fontDisplay, fontSize: 22, fontWeight: 500, marginBottom: 20, letterSpacing: '-0.02em' }}>캠페인 지원</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input placeholder="주소 검색을 눌러주세요" value={address} readOnly onClick={openPostcode}
-                  style={{ flex: 1, border: `1px solid ${T.line}`, borderRadius: 12, padding: '13px 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', background: T.surface2, cursor: 'pointer', color: T.ink }} />
-                <button type="button" onClick={openPostcode}
-                  style={{ flexShrink: 0, background: T.accent, color: T.accentInk, border: 'none', borderRadius: 12, padding: '0 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>주소 검색</button>
+              <div>
+                <label htmlFor="apply-address" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink2, marginBottom: 6 }}>배송지 주소</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input id="apply-address" placeholder="주소 검색을 눌러주세요" value={address} readOnly onClick={openPostcode}
+                    style={{ flex: 1, minWidth: 0, border: `1px solid ${T.line}`, borderRadius: 12, padding: '13px 14px', fontSize: 16, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', background: T.surface2, cursor: 'pointer', color: T.ink }} />
+                  <button type="button" onClick={openPostcode}
+                    style={{ flexShrink: 0, background: T.accent, color: T.accentInk, border: 'none', borderRadius: 12, padding: '0 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>주소 검색</button>
+                </div>
+                {postcodeMsg && <p style={{ fontSize: 12, color: T.ink2, marginTop: 6 }}>{postcodeMsg}</p>}
               </div>
-              <input placeholder="상세 주소 (동, 호수 등)" value={addressDetail} onChange={e => setAddressDetail(e.target.value)}
-                style={{ width: '100%', border: `1px solid ${T.line}`, borderRadius: 12, padding: '13px 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: T.ink }} />
-              <input placeholder="요청사항 (선택)" value={request} onChange={e => setRequest(e.target.value)}
-                style={{ width: '100%', border: `1px solid ${T.line}`, borderRadius: 12, padding: '13px 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: T.ink }} />
+              <div>
+                <label htmlFor="apply-address-detail" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink2, marginBottom: 6 }}>상세 주소</label>
+                <input id="apply-address-detail" placeholder="상세 주소 (동, 호수 등)" value={addressDetail} onChange={e => setAddressDetail(e.target.value)} autoComplete="address-line2"
+                  style={{ width: '100%', border: `1px solid ${T.line}`, borderRadius: 12, padding: '13px 14px', fontSize: 16, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: T.ink }} />
+              </div>
+              <div>
+                <label htmlFor="apply-request" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink2, marginBottom: 6 }}>요청사항 (선택)</label>
+                <input id="apply-request" placeholder="요청사항 (선택)" value={request} onChange={e => setRequest(e.target.value)}
+                  style={{ width: '100%', border: `1px solid ${T.line}`, borderRadius: 12, padding: '13px 14px', fontSize: 16, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: T.ink }} />
+              </div>
               <div style={{ background: 'rgba(176,71,59,0.07)', borderRadius: 12, padding: '12px 14px', fontSize: 12, color: T.danger, lineHeight: 1.5 }}>
                 ⚠️ 배송지는 매 캠페인마다 새로 확인합니다. 정확히 입력해 주세요.
               </div>
@@ -334,9 +424,12 @@ export default function CampaignDetailPage() {
                 <input type="checkbox" checked={costAgree} onChange={e => setCostAgree(e.target.checked)} style={{ width: 18, height: 18, accentColor: T.accent, flexShrink: 0, marginTop: 1 }} />
                 <span>선정 후 <b>미업로드 시 제공받은 제품의 원가를 청구</b>받는 데 동의합니다. <span style={{ color: T.danger }}>(필수)</span></span>
               </label>
+              {applyError && (
+                <p role="alert" style={{ fontSize: 13, color: T.danger, lineHeight: 1.5, background: 'rgba(176,71,59,0.07)', borderRadius: 12, padding: '10px 14px' }}>{applyError}</p>
+              )}
               <button onClick={handleApply} disabled={applying || !address.trim() || !costAgree}
                 style={{ width: '100%', background: T.accent, color: T.accentInk, border: 'none', borderRadius: 16, padding: '15px', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: (applying || !costAgree || !address.trim()) ? .5 : 1 }}>
-                {applying ? '신청 중...' : !costAgree ? '동의 후 신청 가능' : '신청 완료'}
+                {applying ? '신청 중...' : !address.trim() ? '주소를 입력해 주세요' : !costAgree ? '동의 후 신청할 수 있어요' : '신청하기'}
               </button>
             </div>
           </div>

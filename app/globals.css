@@ -13,6 +13,14 @@
 
 * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 
+html { color-scheme: light; }
+
+/* 터치 눌림 피드백 (탭 하이라이트 제거 보완) */
+button:active:not(:disabled) { opacity: .75; }
+
+/* iOS 주소창·툴바를 제외한 실제 가시 높이 (지원 브라우저에서 100vh 덮어씀) */
+.dvh-screen { min-height: 100vh; min-height: 100dvh; }
+
 body {
   background: var(--bg);
   color: var(--ink);
@@ -29,3 +37,47 @@ body {
 /* 모바일 앱 스타일 공통 */
 .screen { display: none; flex-direction: column; min-height: 100vh; }
 .screen.active { display: flex; }
+
+/* ── 인증(로그인·가입) 화면 공통 ── */
+.au-input {
+  transition: border-color .18s, box-shadow .18s, background .18s;
+}
+.au-input:focus {
+  border-color: rgba(26,25,22,0.55) !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 3.5px rgba(26,25,22,0.06);
+}
+.au-input::placeholder { color: var(--ink-3); }
+/* 크롬 자동완성 노란 배경 제거 */
+.au-input:-webkit-autofill,
+.au-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 100px #F4F4F1 inset;
+  -webkit-text-fill-color: var(--ink);
+}
+select.au-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 9l7 7 7-7' stroke='%23A6A59E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+@keyframes au-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+.au-error { animation: au-shake .35s ease; }
+@keyframes au-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.au-step { animation: au-up .3s ease both; }
+@keyframes au-spin { to { transform: rotate(360deg); } }
+.au-spinner {
+  display: inline-block; width: 15px; height: 15px;
+  border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff;
+  border-radius: 50%; animation: au-spin .7s linear infinite;
+  vertical-align: -2px; margin-right: 7px;
+}
