@@ -24,14 +24,14 @@ interface Campaign {
   applications: { count: number }[]
 }
 
-interface AppRow { id: string; status: string; proposed_fee: number | null; campaigns: { name: string; upload_start: string; upload_end: string } | null }
+interface AppRow { id: string; status: string; proposed_fee: number | null; campaign_id: string | null; campaigns: { name: string; upload_start: string; upload_end: string } | null }
 
 const PREMIUM_MIN_FEE = 150000 // A등급 필터 기준: 이 금액 미만 캠페인은 A등급에게 숨김
 interface Noti { icon: string; title: string; body: string; href: string }
 
-// catKey 그룹 기준 필터
+// catKey 그룹 기준 필터 ('__liked' 는 관심 캠페인 전용 가상 키)
 const CATEGORY_FILTERS: [string, string | null][] = [
-  ['전체', null], ['뷰티', 'beauty'], ['푸드', 'food'], ['패션', 'fashion'], ['라이프', 'life'], ['헬스', 'fitness'],
+  ['전체', null], ['♥ 찜', '__liked'], ['뷰티', 'beauty'], ['푸드', 'food'], ['패션', 'fashion'], ['라이프', 'life'], ['헬스', 'fitness'],
 ]
 
 // 'YYYY-MM-DD' 를 로컬 자정 기준으로 D-day 계산
@@ -130,7 +130,7 @@ export default function HomePage() {
       setMyCats(Array.isArray(inf.category) ? inf.category : inf.category ? [inf.category] : [])
     }
     const { data: ar } = await supabase.from('applications')
-      .select('id, status, proposed_fee, campaigns(name, upload_start, upload_end)')
+      .select('id, status, proposed_fee, campaign_id, campaigns(name, upload_start, upload_end)')
       .eq('influencer_id', uid).order('created_at', { ascending: false })
     const rows = (ar as unknown as AppRow[]) || []
     setApps(rows)
@@ -171,7 +171,19 @@ export default function HomePage() {
   const gradeFiltered = myGrade === 'A'
     ? campaigns.filter(c => !c.fee_amount || c.fee_amount >= PREMIUM_MIN_FEE)
     : campaigns
-  const filtered = gradeFiltered.filter(c => catFilter === null || catKey(c.category) === catFilter)
+  const filtered = gradeFiltered.filter(c => {
+    if (catFilter === '__liked') return liked.has(c.id)
+    return catFilter === null || catKey(c.category) === catFilter
+  })
+
+  // 내가 신청한 캠페인 / 진행 중 요약
+  const appliedSet = new Set(apps.map(a => a.campaign_id).filter(Boolean) as string[])
+  const inProgress = apps.filter(a => a.status === 'in_progress')
+  const nearest = inProgress
+    .filter(a => a.campaigns?.upload_end)
+    .map(a => ({ name: a.campaigns!.name, d: dday(a.campaigns!.upload_end) }))
+    .filter(x => x.d !== null)
+    .sort((a, b) => (a.d as number) - (b.d as number))[0]
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, color: T.ink }}>
@@ -195,6 +207,28 @@ export default function HomePage() {
           <RoundBtn icon={Ico.search} ariaLabel="캠페인 둘러보기" onClick={() => router.push('/campaigns')} />
           <RoundBtn icon={Ico.bell} ariaLabel="알림" badge={notis.length > 0} onClick={() => setShowNoti(true)} />
         </div>
+
+        {/* 진행 중 캠페인 요약 — 할 일이 있는 사용자에게 최우선 노출 */}
+        {!loading && inProgress.length > 0 && (
+          <div style={{ padding: `0 ${T.pad}px` }}>
+            <Link href="/schedule" style={{ textDecoration: 'none', display: 'block' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: T.sage, borderRadius: 20, padding: '14px 16px' }}>
+                <span style={{ width: 40, height: 40, borderRadius: 14, background: 'rgba(255,255,255,0.55)', color: T.sageInk, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Ico.calendar width="20" height="20" />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: T.sageInk, letterSpacing: '-0.01em' }}>진행 중인 캠페인 {inProgress.length}개</span>
+                  {nearest && (
+                    <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.sageInk, opacity: 0.8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {nearest.name} · 업로드 {(nearest.d as number) < 0 ? '마감 지남' : (nearest.d as number) === 0 ? '오늘 마감' : `D-${nearest.d}`}
+                    </span>
+                  )}
+                </span>
+                <Ico.chevR width="17" height="17" style={{ color: T.sageInk, flexShrink: 0 }} />
+              </div>
+            </Link>
+          </div>
+        )}
 
         {/* 타이틀 + 카운트 */}
         <div style={{ padding: `4px ${T.pad}px 0`, display: 'flex', alignItems: 'baseline', gap: 7 }}>
@@ -243,7 +277,12 @@ export default function HomePage() {
             </div>
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
-              <p style={{ fontSize: 15, color: T.ink3 }}>{catFilter ? '해당 카테고리의 캠페인이 없어요.' : '모집중인 캠페인이 없어요.'}</p>
+              <p style={{ fontSize: 15, color: T.ink3 }}>
+                {catFilter === '__liked' ? '아직 찜한 캠페인이 없어요.' : catFilter ? '해당 카테고리의 캠페인이 없어요.' : '모집중인 캠페인이 없어요.'}
+              </p>
+              {catFilter === '__liked' && (
+                <p style={{ fontSize: 13, color: T.ink3, marginTop: 6 }}>마음에 드는 캠페인의 ♥ 를 눌러 모아보세요.</p>
+              )}
             </div>
           ) : (
             filtered.map(c => {
@@ -270,20 +309,21 @@ export default function HomePage() {
                   {/* 사진 + 본문 (탭하면 상세) */}
                   <Link href={`/campaign/${c.id}`} style={{ textDecoration: 'none', display: 'block' }}>
                     <PhotoBlock cat={catKey(c.category)} monogram={mono(c)} imageUrl={campaignImg(c.id, c.image_url)} radius={16} style={{ height: 172 }}>
-                      <div style={{ position: 'absolute', top: 10, left: 10 }}>
+                      <div style={{ position: 'absolute', inset: 0, padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <Pill bg="rgba(255,255,255,0.92)" ink={T.ink} size={10.5}>{label(c)}</Pill>
+                        {appliedSet.has(c.id) && <Pill bg={T.sage} ink={T.sageInk} size={10.5}>✓ 신청함</Pill>}
                       </div>
                     </PhotoBlock>
                     <div style={{ padding: '12px 2px 0' }}>
                       <div style={{ fontSize: 16, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.name}</div>
-                      {/* 메타: 리워드 · 마감 · 지원자 */}
+                      {/* 메타: 리워드 · 마감(임박 시 강조) · 지원자 */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8, color: T.ink2, fontSize: 12.5, fontWeight: 600 }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4.5 }}>
                           <Ico.won width="13" height="13" /> {reward(c) ? `${won(reward(c))}원` : (c.fee || '협의')}
                         </span>
                         {d !== null && d >= 0 && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4.5 }}>
-                            <Ico.clock width="13" height="13" /> D-{d === 0 ? 'day' : d}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4.5, color: d <= 3 ? T.danger : undefined, fontWeight: d <= 3 ? 700 : 600 }}>
+                            <Ico.clock width="13" height="13" /> {d === 0 ? '오늘 마감' : `D-${d}`}
                           </span>
                         )}
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4.5 }}>

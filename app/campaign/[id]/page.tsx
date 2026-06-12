@@ -66,6 +66,17 @@ export default function CampaignDetailPage() {
   const [copyFail, setCopyFail] = useState('')          // 복사 실패한 항목 키
   const [applyError, setApplyError] = useState('')      // 신청 실패 인라인 에러
   const [postcodeMsg, setPostcodeMsg] = useState('')    // 주소 검색 로딩 안내 (alert 대체)
+  const [liked, setLiked] = useState(false)             // 관심 캠페인 (홈과 동일한 localStorage)
+  const [applyCnt, setApplyCnt] = useState<number | null>(null) // 지원자 수
+
+  function toggleLike() {
+    try {
+      const arr: string[] = JSON.parse(localStorage.getItem('liked_campaigns') || '[]')
+      const next = liked ? arr.filter(x => x !== id) : [...new Set([...arr, id])]
+      localStorage.setItem('liked_campaigns', JSON.stringify(next))
+    } catch { /* 무시 */ }
+    setLiked(v => !v)
+  }
 
   useEffect(() => {
     supabase.from('campaigns').select('*, brands(name)').eq('id', id).single().then(({ data }) => {
@@ -74,6 +85,10 @@ export default function CampaignDetailPage() {
       setCampaign(data as Campaign)
       setLoading(false)
     })
+    // 찜 여부 복원 + 지원자 수
+    try { setLiked((JSON.parse(localStorage.getItem('liked_campaigns') || '[]') as string[]).includes(id)) } catch { /* 무시 */ }
+    supabase.from('applications').select('id', { count: 'exact', head: true }).eq('campaign_id', id)
+      .then(({ count }) => setApplyCnt(count ?? null))
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.replace('/login'); return }
       setUserId(data.session.user.id)
@@ -208,9 +223,13 @@ export default function CampaignDetailPage() {
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, color: T.ink, paddingBottom: 110 }}>
       {/* 헤더 */}
-      <div style={{ position: 'sticky', top: 0, background: T.surface, zIndex: 10, borderBottom: `1px solid ${T.line}`, padding: '14px 16px', paddingTop: 'max(14px, env(safe-area-inset-top))', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ position: 'sticky', top: 0, background: T.surface, zIndex: 10, borderBottom: `1px solid ${T.line}`, padding: '14px 16px', paddingTop: 'max(14px, env(safe-area-inset-top))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <button onClick={() => router.back()} aria-label="뒤로" style={{ width: 40, height: 40, borderRadius: 12, border: `1px solid ${T.line}`, background: T.surface, color: T.ink, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Ico.back width="20" height="20" />
+        </button>
+        <button type="button" onClick={toggleLike} aria-label={liked ? '관심 캠페인 해제' : '관심 캠페인 추가'} aria-pressed={liked}
+          style={{ width: 40, height: 40, borderRadius: 12, border: `1px solid ${T.line}`, background: T.surface, color: liked ? T.blushInk : T.ink3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'}><path d="M12 20s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7-2.7c0 4.9-7 9.7-7 9.7Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
         </button>
       </div>
 
@@ -238,6 +257,10 @@ export default function CampaignDetailPage() {
           <span style={{ border: `1px solid ${T.line}`, borderRadius: 999, padding: '5px 12px', fontSize: 12, color: T.ink2, fontWeight: 600 }}>{campaign.content_type}</span>
           {campaign.collab_required && <span style={{ background: T.lav, color: T.lavInk, borderRadius: 999, padding: '5px 12px', fontSize: 12, fontWeight: 600 }}>공동작업 필수</span>}
           {campaign.second_use_required && <span style={{ background: T.blush, color: T.blushInk, borderRadius: 999, padding: '5px 12px', fontSize: 12, fontWeight: 600 }}>2차활용 필수</span>}
+          {applyCnt !== null && applyCnt > 0 && <span style={{ background: T.surface2, color: T.ink2, borderRadius: 999, padding: '5px 12px', fontSize: 12, fontWeight: 600 }}>지원 {applyCnt}명</span>}
+          {!recruitClosed && campaign.timeline_apply_end && (
+            <span style={{ background: T.butter, color: T.butterInk, borderRadius: 999, padding: '5px 12px', fontSize: 12, fontWeight: 600 }}>신청 ~{campaign.timeline_apply_end.slice(5, 10).replace('-', '.')}</span>
+          )}
         </div>
       </div>
 

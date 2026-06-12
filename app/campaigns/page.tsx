@@ -51,6 +51,7 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [catFilter, setCatFilter] = useState<string | null>(null)
+  const [q, setQ] = useState('')
 
   async function load() {
     setLoadError(false)
@@ -73,7 +74,12 @@ export default function CampaignsPage() {
     })
   }, [])
 
-  const filtered = campaigns.filter(c => catFilter === null || catKey(c.category) === catFilter)
+  // 카테고리 + 검색어(캠페인명·브랜드명) 동시 적용
+  const needle = q.trim().toLowerCase()
+  const filtered = campaigns.filter(c =>
+    (catFilter === null || catKey(c.category) === catFilter) &&
+    (!needle || c.name?.toLowerCase().includes(needle) || c.brands?.name?.toLowerCase().includes(needle))
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.fontUI, color: T.ink }}>
@@ -85,6 +91,21 @@ export default function CampaignsPage() {
               <Ico.back width="20" height="20" />
             </button>
             <h1 style={{ margin: 0, fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 26, letterSpacing: '-0.02em', color: T.ink }}>All Campaigns</h1>
+          </div>
+          {/* 검색 */}
+          <div style={{ padding: `0 ${T.pad}px 10px` }}>
+            <div style={{ position: 'relative' }}>
+              <span aria-hidden style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)', color: T.ink3, display: 'flex' }}>
+                <Ico.search width="17" height="17" />
+              </span>
+              <input value={q} onChange={e => setQ(e.target.value)} type="search" inputMode="search" enterKeyHint="search"
+                placeholder="캠페인·브랜드 검색" aria-label="캠페인 검색"
+                style={{ width: '100%', background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 999, padding: '12px 42px', fontSize: 16, color: T.ink, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              {q && (
+                <button type="button" onClick={() => setQ('')} aria-label="검색어 지우기"
+                  style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', color: T.ink3, fontSize: 15, cursor: 'pointer' }}>✕</button>
+              )}
+            </div>
           </div>
           {/* 카테고리 필터 */}
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: `0 ${T.pad}px 14px`, scrollbarWidth: 'none' }}>
@@ -117,7 +138,10 @@ export default function CampaignsPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
-              <p style={{ fontSize: 15, color: T.ink3 }}>해당 카테고리의 캠페인이 없어요.</p>
+              <p style={{ fontSize: 15, color: T.ink3 }}>
+                {needle ? `'${q.trim()}' 검색 결과가 없어요.` : '해당 카테고리의 캠페인이 없어요.'}
+              </p>
+              {needle && <p style={{ fontSize: 13, color: T.ink3, marginTop: 6 }}>다른 검색어로 시도해 보세요.</p>}
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>

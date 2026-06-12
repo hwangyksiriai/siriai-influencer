@@ -4,6 +4,9 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'SIRIAI',
   description: '인플루언서 캠페인 플랫폼',
+  manifest: '/manifest.json',
+  appleWebApp: { capable: true, title: 'SIRIAI', statusBarStyle: 'black-translucent' },
+  icons: { apple: '/siriai-symbol-white.png' },
 }
 
 export const viewport: Viewport = {
