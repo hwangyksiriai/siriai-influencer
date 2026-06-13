@@ -90,8 +90,10 @@ export default function MyPage() {
       .eq('id', uid).single()
     if (infError || !influencer) { setInf(null); setLoading(false); return }
     setInf(influencer as Influencer)
-    const { data: sec } = await supabase.from('influencer_secure').select('rrn').eq('influencer_id', uid).limit(1)
-    if (sec && sec[0]) setRrn(sec[0].rrn || '')
+    try {
+      const res = await fetch('/api/rrn', { headers: { Authorization: `Bearer ${data.session.access_token}` } })
+      if (res.ok) { const j = await res.json(); setRrn(j.rrn || '') }
+    } catch { /* 주민번호 미입력 상태 */ }
     const { data: setts } = await supabase
       .from('settlements')
       .select('*, submissions(applications(campaigns(name)))')
@@ -136,7 +138,16 @@ export default function MyPage() {
       yt_shorts_min: inf.yt_shorts_min, yt_shorts_max: inf.yt_shorts_max,
       yt_video_min: inf.yt_video_min, yt_video_max: inf.yt_video_max,
     }).eq('id', inf.id)
-    const { error: secError } = await supabase.from('influencer_secure').upsert({ influencer_id: inf.id, rrn }, { onConflict: 'influencer_id' })
+    let secError: unknown = null
+    try {
+      const { data: s } = await supabase.auth.getSession()
+      const res = await fetch('/api/rrn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.session?.access_token ?? ''}` },
+        body: JSON.stringify({ rrn }),
+      })
+      if (!res.ok) secError = await res.json().catch(() => ({}))
+    } catch (e) { secError = e }
     setSaving(false)
     if (updError || secError) { setSaveError('저장에 실패했어요. 다시 시도해 주세요.'); return }
     setSaved(true)
