@@ -32,17 +32,21 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
 
-  // 간편 로그인 — 프로바이더가 Supabase에 설정돼 있으면 리다이렉트, 아니면 안내
+  // 간편 로그인 — OAuth 프로바이더(카카오/애플/구글) 미설정 상태.
+  // ⚠️ 활성화하려면: Supabase 대시보드 Authentication > Providers 에서 해당 프로바이더 설정 후
+  //    아래 ENABLED 를 true 로 바꾸면 실제 OAuth 로그인으로 동작합니다.
+  const SOCIAL_ENABLED = false
   async function social(provider: 'kakao' | 'apple' | 'google') {
     setError('')
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/home` : undefined },
-    })
-    if (error) {
-      setToast('간편 로그인은 준비 중이에요. 이메일로 로그인해 주세요.')
-      setTimeout(() => setToast(''), 2600)
+    if (SOCIAL_ENABLED) {
+      await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/home` : undefined },
+      })
+      return
     }
+    setToast('간편 로그인은 준비 중이에요. 이메일로 로그인해 주세요.')
+    setTimeout(() => setToast(''), 2600)
   }
 
   async function handleLogin(e: React.FormEvent) {
