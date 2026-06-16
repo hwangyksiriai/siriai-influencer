@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { GlassBackground, GlassButton, GlassInput, GlassIconButton, GlassError, PwToggle } from '@/components/glass'
+import { GlassButton, GlassInput, GlassIconButton, GlassError, PwToggle } from '@/components/glass'
 
 // Supabase 영문 에러 → 사용자용 한글 메시지
 function authErrorKo(message: string): string {
@@ -53,7 +53,11 @@ export default function LoginPage() {
 
   return (
     <div className="dvh-screen glass-screen">
-      <GlassBackground />
+      {/* 사진2 배경 + 브랜드 톤 스크림 (글래스 입력이 사진 위로 프로스트) */}
+      <img src="/brand/auth.png" alt="" aria-hidden
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 22%', zIndex: 0 }} />
+      <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 0, background: 'linear-gradient(180deg, rgba(34,24,72,0.46) 0%, rgba(28,20,58,0.40) 38%, rgba(18,13,40,0.72) 78%, rgba(14,10,30,0.9) 100%)' }} />
+      <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 0, background: 'radial-gradient(120% 80% at 18% 6%, rgba(120,110,255,0.28), transparent 55%)', mixBlendMode: 'screen' }} />
       <div className="au-step" style={{ position: 'relative', zIndex: 1, height: '100%', overflowY: 'auto', padding: 'max(56px, env(safe-area-inset-top)) 26px max(34px, env(safe-area-inset-bottom))' }}>
         {/* 헤더 */}
         <div style={{ marginBottom: 26 }}>
