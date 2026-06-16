@@ -65,6 +65,8 @@ export default function MyPage() {
   const [inf, setInf] = useState<Influencer | null>(null)
   const [settlements, setSettlements] = useState<Settlement[]>([])
   const [tab, setTab] = useState<'profile' | 'settlement' | 'settings'>('profile')
+  const [confirmLogout, setConfirmLogout] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -155,6 +157,8 @@ export default function MyPage() {
   }
 
   async function handleLogout() {
+    if (loggingOut) return
+    setLoggingOut(true)
     await supabase.auth.signOut()
     router.replace('/login')
   }
@@ -206,15 +210,21 @@ export default function MyPage() {
     </div>
   )
 
-  // 조회 실패 / 데이터 없음
+  // 조회 실패 / 데이터 없음 — 프로필이 안 떠도 로그아웃은 가능해야 함
   if (!inf) return (
     <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120, maxWidth: 480, margin: '0 auto' }}>
       <div style={{ padding: '90px 20px', textAlign: 'center' }}>
         <p style={{ fontFamily: T.fontUI, fontSize: 14.5, color: T.ink2, marginBottom: 14 }}>프로필을 불러오지 못했어요</p>
-        <button onClick={load}
-          style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: T.radiusSm, padding: '12px 28px', fontSize: 14, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer' }}>
-          다시 시도
-        </button>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+          <button onClick={load}
+            style={{ background: T.accent, color: T.accentInk, border: 'none', borderRadius: T.radiusSm, padding: '12px 24px', fontSize: 14, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer' }}>
+            다시 시도
+          </button>
+          <button onClick={handleLogout} disabled={loggingOut}
+            style={{ background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, padding: '12px 24px', fontSize: 14, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer', opacity: loggingOut ? 0.6 : 1 }}>
+            {loggingOut ? '로그아웃 중...' : '로그아웃'}
+          </button>
+        </div>
       </div>
       <BottomNav />
     </div>
@@ -248,6 +258,12 @@ export default function MyPage() {
       <div style={{ padding: '20px 20px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h1 style={{ fontSize: 30, fontFamily: T.fontDisplay, fontWeight: 500, letterSpacing: '-0.02em', color: T.ink, lineHeight: 1.04 }}>마이</h1>
+          {/* 로그아웃 — 항상 보이는 진입점 (탭과 무관) */}
+          <button type="button" onClick={() => setConfirmLogout(true)} aria-label="로그아웃"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 100, border: `1px solid ${T.line}`, background: T.surface, color: T.ink2, fontSize: 13, fontWeight: 600, fontFamily: T.fontUI, cursor: 'pointer' }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 17l5-5-5-5M20 12H9M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3" /></svg>
+            로그아웃
+          </button>
         </div>
 
         {/* 프로필 카드 */}
@@ -501,13 +517,39 @@ export default function MyPage() {
 
             {/* 로그아웃 / 탈퇴 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
-              <button onClick={handleLogout} style={{ width: '100%', background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, padding: '14px', fontSize: 14, fontWeight: 600, fontFamily: T.fontUI, cursor: 'pointer' }}>로그아웃</button>
+              <button onClick={() => setConfirmLogout(true)} style={{ width: '100%', background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, padding: '14px', fontSize: 14, fontWeight: 600, fontFamily: T.fontUI, cursor: 'pointer' }}>로그아웃</button>
               <button onClick={handleWithdraw} style={{ width: '100%', background: 'none', color: T.ink3, border: 'none', padding: '8px', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>회원 탈퇴</button>
               {withdrawError && <p className="au-error" style={{ fontSize: 12, color: T.danger, textAlign: 'center' }}>{withdrawError}</p>}
             </div>
           </div>
         )}
       </main>
+
+      {/* 로그아웃 확인 다이얼로그 */}
+      {confirmLogout && (
+        <div role="dialog" aria-modal="true" aria-label="로그아웃 확인"
+          onClick={() => !loggingOut && setConfirmLogout(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(20,18,28,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 480, background: T.surface, borderRadius: '24px 24px 0 0', padding: '24px 22px max(24px, env(safe-area-inset-bottom))', boxSizing: 'border-box' }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: T.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', color: T.ink2 }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 17l5-5-5-5M20 12H9M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3" /></svg>
+            </div>
+            <p style={{ textAlign: 'center', fontSize: 17, fontWeight: 800, color: T.ink, letterSpacing: '-0.02em', margin: '0 0 6px' }}>로그아웃 할까요?</p>
+            <p style={{ textAlign: 'center', fontSize: 13.5, color: T.ink2, lineHeight: 1.55, margin: '0 0 22px' }}>다시 이용하려면 이메일로 로그인하면 돼요.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setConfirmLogout(false)} disabled={loggingOut}
+                style={{ flex: 1, background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, padding: '15px', fontSize: 14.5, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer' }}>
+                취소
+              </button>
+              <button type="button" onClick={handleLogout} disabled={loggingOut}
+                style={{ flex: 1, background: T.danger, color: '#fff', border: 'none', borderRadius: T.radiusSm, padding: '15px', fontSize: 14.5, fontWeight: 700, fontFamily: T.fontUI, cursor: 'pointer', opacity: loggingOut ? 0.6 : 1 }}>
+                {loggingOut ? '로그아웃 중...' : '로그아웃'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>
