@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { GlassBackground, GlassButton, GlassInput, GlassIconButton, GlassError, PwToggle } from '@/components/glass'
+import { GlassPhotoBackground, GlassButton, GlassInput, GlassIconButton, GlassError, PwToggle } from '@/components/glass'
 
 const CATEGORIES = ['색조', '스킨케어', '패션', '라이프', '육아', '피트니스']
 const GENDERS = ['여성', '남성']
@@ -114,7 +114,7 @@ export default function SignupPage() {
   if (done) {
     return (
       <div className="dvh-screen glass-screen au-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', textAlign: 'center' }}>
-        <GlassBackground />
+        <GlassPhotoBackground position="center 18%" />
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--g-tint-2)', border: '1px solid var(--g-border)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 22, boxShadow: 'inset 0 1.5px 0 rgba(255,255,255,0.4)' }}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -134,7 +134,7 @@ export default function SignupPage() {
 
   return (
     <div className="dvh-screen glass-screen">
-      <GlassBackground />
+      <GlassPhotoBackground position="center 18%" />
       <div style={{ position: 'relative', zIndex: 1, height: '100%', overflowY: 'auto', padding: 'max(56px, env(safe-area-inset-top)) 26px max(34px, env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' }}>
         {/* 헤더 */}
         <div style={{ marginBottom: 22 }}>

@@ -4,7 +4,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { GlassButton, GlassInput, GlassIconButton, GlassError, PwToggle } from '@/components/glass'
+import { GlassPhotoBackground, GlassButton, GlassInput, GlassIconButton, GlassError, PwToggle } from '@/components/glass'
+
+// 간편 로그인 버튼 (카카오/애플/구글)
+const SOCIALS: { id: 'kakao' | 'apple' | 'google'; label: string; bg: string; ink: string; mark: React.ReactNode }[] = [
+  { id: 'kakao', label: '카카오', bg: '#FEE500', ink: '#191600', mark: <span style={{ fontWeight: 800, fontSize: 18 }}>K</span> },
+  { id: 'apple', label: '애플', bg: '#fff', ink: '#000', mark: <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.8c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.8-3-.8c-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.3-2.6-.1 0-2.5-1-2.5-3.9zM14.2 5.8c.6-.8 1-1.9.9-3-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.8-.9 2.9 1 .1 2-.5 2.7-1.3z"/></svg> },
+  { id: 'google', label: '구글', bg: '#fff', ink: '#4285F4', mark: <span style={{ fontWeight: 800, fontSize: 18 }}>G</span> },
+]
 
 // Supabase 영문 에러 → 사용자용 한글 메시지
 function authErrorKo(message: string): string {
@@ -23,6 +30,20 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [toast, setToast] = useState('')
+
+  // 간편 로그인 — 프로바이더가 Supabase에 설정돼 있으면 리다이렉트, 아니면 안내
+  async function social(provider: 'kakao' | 'apple' | 'google') {
+    setError('')
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/home` : undefined },
+    })
+    if (error) {
+      setToast('간편 로그인은 준비 중이에요. 이메일로 로그인해 주세요.')
+      setTimeout(() => setToast(''), 2600)
+    }
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -53,11 +74,7 @@ export default function LoginPage() {
 
   return (
     <div className="dvh-screen glass-screen">
-      {/* 사진2 배경 + 브랜드 톤 스크림 (글래스 입력이 사진 위로 프로스트) */}
-      <img src="/brand/auth.png" alt="" aria-hidden
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 22%', zIndex: 0 }} />
-      <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 0, background: 'linear-gradient(180deg, rgba(34,24,72,0.46) 0%, rgba(28,20,58,0.40) 38%, rgba(18,13,40,0.72) 78%, rgba(14,10,30,0.9) 100%)' }} />
-      <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 0, background: 'radial-gradient(120% 80% at 18% 6%, rgba(120,110,255,0.28), transparent 55%)', mixBlendMode: 'screen' }} />
+      <GlassPhotoBackground position="center 20%" />
       <div className="au-step" style={{ position: 'relative', zIndex: 1, height: '100%', overflowY: 'auto', padding: 'max(56px, env(safe-area-inset-top)) 26px max(34px, env(safe-area-inset-bottom))' }}>
         {/* 헤더 */}
         <div style={{ marginBottom: 26 }}>
@@ -88,13 +105,35 @@ export default function LoginPage() {
           <GlassButton type="submit" disabled={loading || !email || !password} loading={loading} style={{ marginTop: 4 }}>
             {loading ? '로그인 중...' : '로그인'}
           </GlassButton>
+
+          {/* 또는 간편 로그인 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
+            <span style={{ flex: 1, height: 1, background: 'var(--g-border-soft)' }} />
+            <span style={{ fontSize: 12.5, color: 'var(--g-text-faint)', fontWeight: 600, whiteSpace: 'nowrap' }}>또는 간편 로그인</span>
+            <span style={{ flex: 1, height: 1, background: 'var(--g-border-soft)' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            {SOCIALS.map(s => (
+              <button key={s.id} type="button" onClick={() => social(s.id)} aria-label={`${s.label}로 로그인`}
+                className="glass-btn"
+                style={{ width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer', background: s.bg, color: s.ink, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 18px rgba(0,0,0,0.28)' }}>
+                {s.mark}
+              </button>
+            ))}
+          </div>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: 28, fontSize: 14, color: 'var(--g-text-dim)' }}>
+        <div style={{ textAlign: 'center', marginTop: 26, fontSize: 14, color: 'var(--g-text-dim)' }}>
           아직 회원이 아니신가요?{' '}
           <Link href="/signup" style={{ color: 'var(--g-text)', fontWeight: 700, textDecoration: 'none' }}>회원가입</Link>
         </div>
       </div>
+
+      {toast && (
+        <div style={{ position: 'fixed', left: '50%', bottom: 'max(28px, env(safe-area-inset-bottom))', transform: 'translateX(-50%)', zIndex: 50, background: 'rgba(20,18,28,0.92)', color: '#fff', fontSize: 13, fontWeight: 600, padding: '11px 18px', borderRadius: 999, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', whiteSpace: 'nowrap', maxWidth: '90vw' }}>
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

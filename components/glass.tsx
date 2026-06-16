@@ -15,6 +15,20 @@ export function GlassBackground() {
   )
 }
 
+// 배경: 흑백 그레인 사진(사진2) + 뉴트럴 다크 스크림 — 인증 플로우 공통
+export function GlassPhotoBackground({ src = '/brand/auth.png', position = 'center 22%' }: { src?: string; position?: string }) {
+  return (
+    <>
+      <img src={src} alt="" aria-hidden
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: position, zIndex: 0 }} />
+      {/* 가독성용 다크 스크림 (상단 살짝, 하단 진하게) */}
+      <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 0, background: 'linear-gradient(180deg, rgba(12,11,16,0.38) 0%, rgba(12,11,16,0.36) 34%, rgba(9,8,13,0.72) 74%, rgba(7,6,10,0.93) 100%)' }} />
+      {/* 브랜드 톤 살짝 (상단 코너 글로우) */}
+      <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 0, background: 'radial-gradient(120% 78% at 16% 4%, rgba(132,122,255,0.16), transparent 56%)', mixBlendMode: 'screen' }} />
+    </>
+  )
+}
+
 // 둥근 글래스 아이콘 버튼 (뒤로/벨 등)
 export function GlassIconButton({ children, onClick, size = 44, ariaLabel, badge, style }: {
   children: React.ReactNode; onClick?: () => void; size?: number; ariaLabel?: string; badge?: boolean; style?: React.CSSProperties
