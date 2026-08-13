@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { isGuest } from '@/lib/guest'
 import { T } from '@/lib/theme'
 
 interface Msg { id: string; sender: string; body: string; created_at: string; influencer_id?: string }
@@ -25,7 +26,8 @@ export default function MessageThreadPage() {
   // 초기 로드 + uid 세팅
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) { router.replace('/login'); return }
+      if (!data.session && !isGuest()) { router.replace('/login'); return }
+      if (!data.session) { setLoading(false); return } // 게스트: 대화 없음
       const u = data.session.user.id
       setUid(u)
 

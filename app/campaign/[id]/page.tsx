@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { isGuest } from '@/lib/guest'
 import { Ico } from '@/components/ui'
 import { T, PHOTO, CAT, catKey, won, campaignImg } from '@/lib/theme'
 
@@ -90,7 +91,8 @@ export default function CampaignDetailPage() {
     supabase.from('applications').select('id', { count: 'exact', head: true }).eq('campaign_id', id)
       .then(({ count }) => setApplyCnt(count ?? null))
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) { router.replace('/login'); return }
+      if (!data.session && !isGuest()) { router.replace('/login'); return }
+      if (!data.session) return // 게스트: 열람만 가능(신청 여부 확인·신청 불가)
       setUserId(data.session.user.id)
       const { data: app } = await supabase.from('applications').select('id').eq('campaign_id', id).eq('influencer_id', data.session.user.id).maybeSingle()
       if (app) setAlreadyApplied(true)
@@ -400,10 +402,13 @@ export default function CampaignDetailPage() {
       {/* 신청 버튼 — 모집 마감/신청 완료 시 비활성 */}
       <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: T.surface, borderTop: `1px solid ${T.line}`, padding: '12px 20px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
         <button
-          onClick={() => { if (!alreadyApplied && !recruitClosed) { setApplyError(''); setShowApply(true) } }}
+          onClick={() => {
+            if (!userId) { router.push('/login'); return } // 게스트: 로그인 유도
+            if (!alreadyApplied && !recruitClosed) { setApplyError(''); setShowApply(true) }
+          }}
           disabled={alreadyApplied || recruitClosed}
           style={{ width: '100%', background: (alreadyApplied || recruitClosed) ? T.surface2 : T.accent, color: (alreadyApplied || recruitClosed) ? T.ink3 : T.accentInk, border: 'none', borderRadius: 16, padding: '15px', fontSize: 15, fontWeight: 700, cursor: (alreadyApplied || recruitClosed) ? 'default' : 'pointer' }}>
-          {alreadyApplied ? '신청 완료' : recruitClosed ? '모집 마감' : '캠페인 지원하기'}
+          {alreadyApplied ? '신청 완료' : recruitClosed ? '모집 마감' : !userId ? '로그인하고 지원하기' : '캠페인 지원하기'}
         </button>
       </div>
 

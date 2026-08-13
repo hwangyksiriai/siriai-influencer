@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { isGuest, setGuest } from '@/lib/guest'
 import BottomNav from '@/components/BottomNav'
 import { T } from '@/lib/theme'
 import { Ico, Pill, Card, Chip, Avatar } from '@/components/ui'
@@ -84,7 +85,8 @@ export default function MyPage() {
   async function load() {
     setLoading(true)
     const { data } = await supabase.auth.getSession()
-    if (!data.session) { router.replace('/login'); return }
+    if (!data.session && !isGuest()) { router.replace('/login'); return }
+    if (!data.session) { setInf(null); setLoading(false); return } // 게스트: 로그인 유도 화면
     const uid = data.session.user.id
     // 관리자 전용 항목(admin_memo·blacklisted 등)은 가져오지 않음
     const { data: influencer, error: infError } = await supabase.from('influencers')
@@ -159,6 +161,7 @@ export default function MyPage() {
   async function handleLogout() {
     if (loggingOut) return
     setLoggingOut(true)
+    setGuest(false) // 둘러보기 모드도 함께 해제
     await supabase.auth.signOut()
     router.replace('/login')
   }
@@ -205,6 +208,23 @@ export default function MyPage() {
         <div style={{ display: 'flex', gap: 8 }}>
           {[0, 1, 2].map(i => <div key={i} style={{ ...skel, width: 84, height: 34, borderRadius: 100 }} />)}
         </div>
+      </div>
+      <BottomNav />
+    </div>
+  )
+
+  // 게스트(로그인 없이 둘러보기) — 로그인 유도
+  if (!inf && isGuest()) return (
+    <div style={{ minHeight: '100vh', background: T.bg, paddingBottom: 120, maxWidth: 480, margin: '0 auto' }}>
+      <div style={{ padding: '100px 28px', textAlign: 'center' }}>
+        <div style={{ width: 68, height: 68, borderRadius: 22, background: T.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px', color: T.ink2 }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" /></svg>
+        </div>
+        <p style={{ fontFamily: T.fontUI, fontSize: 17, fontWeight: 800, color: T.ink, letterSpacing: '-0.02em', marginBottom: 8 }}>둘러보기 모드예요</p>
+        <p style={{ fontFamily: T.fontUI, fontSize: 14, color: T.ink2, lineHeight: 1.6, marginBottom: 24 }}>로그인하면 프로필·신청 내역·정산을<br />관리할 수 있어요.</p>
+        <Link href="/login" style={{ display: 'inline-block', background: T.accent, color: T.accentInk, borderRadius: T.radiusSm, padding: '14px 34px', fontSize: 14.5, fontWeight: 700, fontFamily: T.fontUI, textDecoration: 'none' }}>
+          로그인 / 회원가입
+        </Link>
       </div>
       <BottomNav />
     </div>

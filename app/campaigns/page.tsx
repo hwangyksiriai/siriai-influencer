@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { isGuest } from '@/lib/guest'
 import BottomNav from '@/components/BottomNav'
 import { Ico, Pill, Chip, PhotoBlock } from '@/components/ui'
 import { T, CAT, catKey, won, campaignImg } from '@/lib/theme'
@@ -69,7 +70,7 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) { router.replace('/login'); return }
+      if (!data.session && !isGuest()) { router.replace('/login'); return }
       load()
     })
   }, [])

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { GlassPhotoBackground, GlassButton, GlassInput, GlassIconButton, GlassError, PwToggle } from '@/components/glass'
+import { setGuest } from '@/lib/guest'
 
 // 간편 로그인 버튼 (카카오/애플/구글)
 const SOCIALS: { id: 'kakao' | 'apple' | 'google'; label: string; bg: string; ink: string; mark: React.ReactNode }[] = [
@@ -73,6 +74,7 @@ export default function LoginPage() {
         : '아직 승인 대기 중이에요. 검토 후 승인되면 이용할 수 있어요.')
       return
     }
+    setGuest(false) // 실제 로그인 시 둘러보기 모드 해제
     router.push('/home')
   }
 

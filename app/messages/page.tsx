@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { isGuest } from '@/lib/guest'
 import BottomNav from '@/components/BottomNav'
 import { T } from '@/lib/theme'
 
@@ -54,7 +55,8 @@ export default function InfMessagesPage() {
   // 초기 로드
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) { router.replace('/login'); return }
+      if (!data.session && !isGuest()) { router.replace('/login'); return }
+      if (!data.session) { setLoading(false); return } // 게스트: 대화 없음
       const u = data.session.user.id
       setUid(u)
       await loadThreads(u)

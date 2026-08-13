@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 import { Ico, Pill, PhotoBlock, Monogram } from '@/components/ui'
 import { T, CAT, catKey, won, campaignImg } from '@/lib/theme'
+import { isGuest } from '@/lib/guest'
 
 interface Campaign {
   id: string
@@ -114,7 +115,11 @@ export default function HomePage() {
 
   async function checkAuth() {
     const { data } = await supabase.auth.getSession()
-    if (!data.session) { router.replace('/login'); return }
+    // 게스트(로그인 없이 둘러보기)는 통과 — 개인 데이터 없이 캠페인만 노출
+    if (!data.session) {
+      if (isGuest()) { setUserName('게스트'); return }
+      router.replace('/login'); return
+    }
     const uid = data.session.user.id
     const { data: inf } = await supabase.from('influencers')
       .select('name, handle, status, avatar_url, category, ig_feed_max, ig_reels_max, yt_shorts_max, yt_video_max')

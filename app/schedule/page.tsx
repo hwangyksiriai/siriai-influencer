@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { isGuest } from '@/lib/guest'
 import BottomNav from '@/components/BottomNav'
 import { T } from '@/lib/theme'
 import { Ico, Pill, Card, IconBtn, AppHeader } from '@/components/ui'
@@ -117,7 +118,8 @@ export default function SchedulePage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) { router.replace('/login'); return }
+      if (!data.session && !isGuest()) { router.replace('/login'); return }
+      if (!data.session) { setLoading(false); return } // 게스트: 개인 일정 없음
       load(data.session.user.id)
     })
   }, [])

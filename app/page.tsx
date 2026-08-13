@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { GlassPhotoBackground, GlassButton } from '@/components/glass'
+import { setGuest } from '@/lib/guest'
 
 // 온보딩 슬라이드 (레퍼 2 — 흑백 사진 글래스)
 const SLIDES = [
@@ -26,6 +27,12 @@ export default function RootPage() {
       setReady(true)
     })
   }, [router])
+
+  // 로그인 없이 둘러보기 (일단 임시)
+  function enterAsGuest() {
+    setGuest(true)
+    router.push('/home')
+  }
 
   return (
     <div className="dvh-screen glass-screen" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -72,6 +79,11 @@ export default function RootPage() {
             <Link href="/login" style={{ textDecoration: 'none' }}>
               <GlassButton variant="glass">이미 계정이 있어요 · 로그인</GlassButton>
             </Link>
+            {/* 로그인 없이 둘러보기 (일단 임시) */}
+            <button type="button" onClick={enterAsGuest}
+              style={{ background: 'none', border: 'none', color: 'var(--g-text-dim)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', padding: '10px', marginTop: 2 }}>
+              로그인 없이 둘러보기
+            </button>
           </div>
         ) : (
           <GlassButton onClick={() => setI(i + 1)} icon={<span aria-hidden style={{ fontSize: 17, lineHeight: 1 }}>→</span>}>다음</GlassButton>

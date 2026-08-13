@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { isGuest } from '@/lib/guest'
 import BottomNav from '@/components/BottomNav'
 import { T, catKey } from '@/lib/theme'
 import { Ico, Card, Monogram, AppHeader } from '@/components/ui'
@@ -69,7 +70,8 @@ export default function UploadPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) { router.replace('/login'); return }
+      if (!data.session && !isGuest()) { router.replace('/login'); return }
+      if (!data.session) return // 게스트: 업로드할 캠페인 없음
       const userId = data.session.user.id
       setUid(userId)
       await loadApps(userId)
